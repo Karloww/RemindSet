@@ -1,0 +1,42 @@
+{
+  "name": "UserPurchase",
+  "type": "object",
+  "properties": {
+    "shop_item_id": {
+      "type": "string"
+    },
+    "item_type": {
+      "type": "string"
+    },
+    "item_value": {
+      "type": "string"
+    },
+    "item_name": {
+      "type": "string"
+    },
+    "rarity": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "shop_item_id",
+    "item_type",
+    "item_value"
+  ],
+  "rls": {
+    "create": true,
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

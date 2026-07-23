@@ -1,0 +1,65 @@
+{
+  "name": "ActivityResponse",
+  "type": "object",
+  "properties": {
+    "activity_id": {
+      "type": "string"
+    },
+    "classroom_id": {
+      "type": "string"
+    },
+    "student_id": {
+      "type": "string"
+    },
+    "student_name": {
+      "type": "string"
+    },
+    "answers": {
+      "type": "string"
+    },
+    "total_score": {
+      "type": "number",
+      "default": 0
+    },
+    "max_score": {
+      "type": "number",
+      "default": 0
+    },
+    "graded": {
+      "type": "boolean",
+      "default": false
+    },
+    "submitted_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "file_url": {
+      "type": "string"
+    },
+    "link_url": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "activity_id",
+    "student_id",
+    "student_name"
+  ],
+  "rls": {
+    "create": true,
+    "read": true,
+    "update": {
+      "$or": [
+        {
+          "data.student_id": "{{user.id}}"
+        },
+        {
+          "created_by_id": "{{user.id}}"
+        }
+      ]
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

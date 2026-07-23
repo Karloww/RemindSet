@@ -1,0 +1,85 @@
+{
+  "name": "LessonAssignment",
+  "type": "object",
+  "properties": {
+    "lesson_id": {
+      "type": "string"
+    },
+    "lesson_title": {
+      "type": "string"
+    },
+    "subject": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "file_url": {
+      "type": "string"
+    },
+    "file_name": {
+      "type": "string"
+    },
+    "teacher_name": {
+      "type": "string"
+    },
+    "student_id": {
+      "type": "string"
+    },
+    "student_name": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "assigned",
+        "viewed",
+        "completed"
+      ],
+      "default": "assigned"
+    },
+    "viewed_date": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "points_earned": {
+      "type": "number",
+      "default": 0
+    },
+    "points_reward": {
+      "type": "number",
+      "default": 10
+    },
+    "scheduled_date": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "classroom_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "lesson_id",
+    "lesson_title",
+    "student_id",
+    "student_name",
+    "status"
+  ],
+  "rls": {
+    "create": true,
+    "read": true,
+    "update": {
+      "$or": [
+        {
+          "data.student_id": "{{user.id}}"
+        },
+        {
+          "created_by_id": "{{user.id}}"
+        }
+      ]
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

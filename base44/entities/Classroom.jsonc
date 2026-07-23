@@ -1,0 +1,33 @@
+{
+  "name": "Classroom",
+  "type": "object",
+  "properties": {
+    "subject_title": {
+      "type": "string"
+    },
+    "year_and_section": {
+      "type": "string"
+    },
+    "class_code": {
+      "type": "string"
+    },
+    "teacher_name": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "subject_title",
+    "year_and_section",
+    "class_code"
+  ],
+  "rls": {
+    "create": true,
+    "read": true,
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

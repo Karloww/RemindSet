@@ -1,0 +1,32 @@
+{
+  "name": "AppSettings",
+  "type": "object",
+  "properties": {
+    "maintenance_mode": {
+      "type": "boolean",
+      "default": false
+    },
+    "maintenance_message": {
+      "type": "string",
+      "default": "The app is currently under maintenance. Please check back later."
+    }
+  },
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": true,
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

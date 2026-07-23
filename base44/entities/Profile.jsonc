@@ -1,0 +1,76 @@
+{
+  "name": "Profile",
+  "type": "object",
+  "properties": {
+    "first_name": {
+      "type": "string"
+    },
+    "last_name": {
+      "type": "string"
+    },
+    "username": {
+      "type": "string"
+    },
+    "gender": {
+      "type": "string",
+      "enum": [
+        "male",
+        "female",
+        "other"
+      ]
+    },
+    "account_type": {
+      "type": "string",
+      "enum": [
+        "student",
+        "teacher"
+      ],
+      "default": "student"
+    },
+    "bio": {
+      "type": "string"
+    },
+    "points": {
+      "type": "number",
+      "default": 0
+    },
+    "profile_picture_url": {
+      "type": "string"
+    },
+    "cover_photo_url": {
+      "type": "string"
+    },
+    "selected_color_theme": {
+      "type": "string",
+      "default": "indigo"
+    },
+    "selected_background": {
+      "type": "string",
+      "default": "none"
+    },
+    "selected_cover_photo": {
+      "type": "string",
+      "default": "default"
+    },
+    "selected_profile_icon": {
+      "type": "string",
+      "default": "default"
+    }
+  },
+  "required": [
+    "first_name",
+    "last_name",
+    "username",
+    "account_type"
+  ],
+  "rls": {
+    "create": true,
+    "read": true,
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

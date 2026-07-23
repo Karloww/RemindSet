@@ -1,0 +1,46 @@
+{
+  "name": "ClassroomEnrollment",
+  "type": "object",
+  "properties": {
+    "classroom_id": {
+      "type": "string"
+    },
+    "student_id": {
+      "type": "string"
+    },
+    "student_name": {
+      "type": "string"
+    },
+    "subject_title": {
+      "type": "string"
+    },
+    "year_and_section": {
+      "type": "string"
+    },
+    "teacher_name": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "classroom_id",
+    "student_id",
+    "student_name"
+  ],
+  "rls": {
+    "create": true,
+    "read": true,
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.student_id": "{{user.id}}"
+        },
+        {
+          "created_by_id": "{{user.id}}"
+        }
+      ]
+    }
+  }
+}
