@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Base44 Project
 
 Use this repository to run and edit the app locally, then publish changes back through Base44.
@@ -75,3 +76,7 @@ Documentation: [https://docs.base44.com/Integrations/Using-GitHub](https://docs.
 Base44 CLI command reference: [https://docs.base44.com/developers/references/cli/commands/introduction](https://docs.base44.com/developers/references/cli/commands/introduction)
 
 Support: [https://app.base44.com/support](https://app.base44.com/support)
+=======
+# RemindSet
+RemindSet, the ultimate study and classroom management companion designed to help students and teachers stay completely synced, organized, and on schedule. Whether you're a student keeping track of upcoming lessons and unfinished activities, or a teacher managing coursework and announcements.
+>>>>>>> ea60e27f58276fa7d2539de35d8da85d947f9991
