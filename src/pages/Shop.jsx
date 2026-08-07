@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useProfile } from "@/lib/ProfileContext";
@@ -6,11 +6,10 @@ import { useShop } from "@/lib/useShop";
 import { Button } from "@/components/ui/button";
 import { Coins, Loader2, Check, Sparkles } from "lucide-react";
 import ItemPreview from "@/components/ItemPreview";
-import { RARITY_INFO } from "@/lib/themes";
+import { RARITY_INFO, SHOP_CATALOG } from "@/lib/themes";
 
 const TABS = [
   { id: "color_theme", label: "Color Themes" },
-  { id: "background", label: "Backgrounds" },
   { id: "cover_photo", label: "Cover Photos" },
   { id: "profile_icon", label: "Profile Icons" },
 ];
@@ -31,7 +30,19 @@ export default function Shop() {
     return () => { active = false; };
   }, []);
 
-  const filtered = items.filter((i) => i.type === tab);
+  // Merge static catalog with DB items so Shop and Customize show the same options.
+  // DB items override catalog entries (admin can edit price/rarity); DB-only items are appended.
+  const filtered = useMemo(() => {
+    const catalogForType = SHOP_CATALOG.filter((c) => c.type === tab);
+    const dbForType = items.filter((i) => i.type === tab);
+    const catalogValues = new Set(catalogForType.map((c) => c.value));
+    const result = catalogForType.map((c) => {
+      const dbItem = dbForType.find((i) => i.value === c.value);
+      return dbItem || { ...c, id: c.value };
+    });
+    dbForType.filter((i) => !catalogValues.has(i.value)).forEach((i) => result.push(i));
+    return result;
+  }, [items, tab]);
 
   const handleBuy = async (item) => {
     setBusy((b) => ({ ...b, [item.id]: "buy" }));
@@ -49,10 +60,10 @@ export default function Shop() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Shop</h1>
-          <p className="text-muted-foreground text-sm mt-1">Spend your points on customization items.</p>
+          <p className="text-muted-foreground text-sm mt-1">Spend your coins on customization items.</p>
         </div>
         <div className="inline-flex items-center gap-1.5 bg-primary/10 text-primary px-3 py-1.5 rounded-full font-semibold">
-          <Coins className="w-4 h-4" /> {profile?.points || 0}
+          <Coins className="w-4 h-4" /> {profile?.points || 0} coins
         </div>
       </div>
 
@@ -104,7 +115,7 @@ export default function Shop() {
       )}
 
       <div className="text-center text-sm text-muted-foreground pt-2">
-        Want more points? <Link to="/classrooms" className="text-primary font-medium hover:underline">Complete your lessons</Link> to earn {10} pts each.
+        Want more coins? <Link to="/classrooms" className="text-primary font-medium hover:underline">Complete your lessons and activities</Link> to earn coins each.
       </div>
     </div>
   );

@@ -25,13 +25,17 @@ import LessonDetail from '@/pages/LessonDetail';
 import UploadLesson from '@/pages/UploadLesson';
 import AssignLesson from '@/pages/AssignLesson';
 import EditLesson from '@/pages/EditLesson';
-import Shop from '@/pages/Shop';
 import CustomizeTheme from '@/pages/CustomizeTheme';
+import StudentActivities from '@/pages/StudentActivities';
+import StudentLessons from '@/pages/StudentLessons';
+import Announcements from '@/pages/Announcements';
+import StudentsMissed from '@/pages/StudentsMissed';
 import Profile from '@/pages/Profile';
 import EditProfile from '@/pages/EditProfile';
 import ManageAccount from '@/pages/ManageAccount';
 import Notifications from '@/pages/Notifications';
 import Settings from '@/pages/Settings';
+import NotificationSettings from '@/pages/NotificationSettings';
 import HowToUse from '@/pages/HowToUse';
 import UserProfile from '@/pages/UserProfile';
 import AdminLayout from '@/components/AdminLayout';
@@ -40,8 +44,14 @@ import ManageUsers from '@/pages/admin/ManageUsers';
 import ManageShop from '@/pages/admin/ManageShop';
 import AdminNotifications from '@/pages/admin/AdminNotifications';
 import MaintenanceMode from '@/pages/admin/MaintenanceMode';
+import ManageWebsite from '@/pages/admin/ManageWebsite';
+import ManageReports from '@/pages/admin/ManageReports';
 import ActivityBuilder from '@/pages/ActivityBuilder';
 import TakeActivity from '@/pages/TakeActivity';
+import CalendarPage from '@/pages/CalendarPage';
+import Resources from '@/pages/Resources';
+import Users from '@/pages/Users';
+import Messages from '@/pages/Messages';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin, user, maintenanceMode, maintenanceMessage } = useAuth();
@@ -81,12 +91,14 @@ const AuthenticatedApp = () => {
         {/* Onboarding is standalone (no app shell) */}
         <Route path="/onboarding" element={<Onboarding />} />
         {/* Admin routes */}
-        <Route element={<AdminLayout />}>
+        <Route element={<ProfileProvider><AdminLayout /></ProfileProvider>}>
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admin/users" element={<ManageUsers />} />
           <Route path="/admin/shop" element={<ManageShop />} />
           <Route path="/admin/notifications" element={<AdminNotifications />} />
           <Route path="/admin/maintenance" element={<MaintenanceMode />} />
+          <Route path="/admin/reports" element={<ManageReports />} />
+          <Route path="/admin/website" element={<ManageWebsite />} />
         </Route>
         {/* App shell with theme + navigation */}
         <Route element={<ProfileProvider><AppLayout /></ProfileProvider>}>
@@ -98,16 +110,26 @@ const AuthenticatedApp = () => {
           <Route path="/classrooms/:id/activities/new" element={<ActivityBuilder />} />
           <Route path="/classrooms/:id/activities/:activityId" element={<ActivityBuilder />} />
           <Route path="/classrooms/:id/activities/:activityId/take" element={<TakeActivity />} />
+          <Route path="/calendar" element={<CalendarPage />} />
+          <Route path="/resources" element={<Resources />} />
+          <Route path="/users" element={<Users />} />
+          <Route path="/messages" element={<Messages />} />
+          <Route path="/messages/:conversationId" element={<Messages />} />
           <Route path="/classrooms/:id/lessons/:lessonId/assign" element={<AssignLesson />} />
           <Route path="/classrooms/:id/lessons/:lessonId/edit" element={<EditLesson />} />
           <Route path="/lessons/:id" element={<LessonDetail />} />
-          <Route path="/shop" element={<Shop />} />
           <Route path="/customize-theme" element={<CustomizeTheme />} />
+          <Route path="/activities" element={<StudentActivities />} />
+          <Route path="/lessons" element={<StudentLessons />} />
+          <Route path="/announcements" element={<Announcements />} />
+          <Route path="/students-missed" element={<StudentsMissed />} />
+          <Route path="/shop" element={<Navigate to="/customize-theme" replace />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/edit-profile" element={<EditProfile />} />
           <Route path="/manage-account" element={<ManageAccount />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/notification-settings" element={<NotificationSettings />} />
           <Route path="/how-to-use" element={<HowToUse />} />
           <Route path="/users/:userId" element={<UserProfile />} />
         </Route>
@@ -120,6 +142,7 @@ const AuthenticatedApp = () => {
 
 
 function App() {
+
   return (
     <AuthProvider>
       <QueryClientProvider client={queryClientInstance}>

@@ -2,15 +2,6 @@
 // Each color theme overrides the shadcn CSS variables on :root, restyling the whole interface.
 
 export const COLOR_THEMES = {
-  indigo: {
-    id: "indigo", name: "Indigo", dark: false,
-    vars: {
-      "--primary": "243 75% 59%", "--primary-foreground": "0 0% 100%",
-      "--ring": "243 75% 59%", "--accent": "243 75% 96%", "--accent-foreground": "243 75% 30%",
-      "--chart-1": "243 75% 59%", "--chart-2": "173 58% 39%", "--chart-3": "197 37% 40%",
-      "--chart-4": "43 74% 66%", "--chart-5": "27 87% 67%"
-    }
-  },
   ocean: {
     id: "ocean", name: "Ocean Blue", dark: false,
     vars: {
@@ -218,4 +209,72 @@ export function isUrlValue(v) {
 
 export function isCssValue(v) {
   return typeof v === "string" && (v.startsWith("#") || v.startsWith("linear-gradient") || v.startsWith("radial-gradient") || v.startsWith("rgb(") || v.startsWith("hsl("));
+}
+
+// Convert a hex color (#RRGGBB) to HSL channels string like "243 75% 59%"
+export function hexToHsl(hex) {
+  hex = hex.replace('#', '');
+  const r = parseInt(hex.slice(0, 2), 16) / 255;
+  const g = parseInt(hex.slice(2, 4), 16) / 255;
+  const b = parseInt(hex.slice(4, 6), 16) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h = 0, s = 0;
+  const l = (max + min) / 2;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = ((g - b) / d + (g < b ? 6 : 0)); break;
+      case g: h = ((b - r) / d + 2); break;
+      case b: h = ((r - g) / d + 4); break;
+    }
+    h *= 60;
+  }
+  return { h: Math.round(h), s: Math.round(s * 100), l: Math.round(l * 100) };
+}
+
+function hslStr(h, s, l) { return `${h} ${s}% ${l}%`; }
+
+// Try to parse a custom color theme value (JSON with {main, bg} hex colors).
+// Returns {main, bg} or null.
+export function parseCustomColorTheme(value) {
+  if (typeof value !== 'string') return null;
+  try {
+    const parsed = JSON.parse(value);
+    if (parsed && parsed.main) return parsed;
+  } catch (e) { /* not JSON */ }
+  return null;
+}
+
+// Resolve any color theme value (static id from the catalog or a custom JSON) into CSS vars.
+export function resolveColorThemeVars(value) {
+  if (COLOR_THEMES[value]) return COLOR_THEMES[value].vars;
+  const custom = parseCustomColorTheme(value);
+  if (custom) {
+    const hsl = hexToHsl(custom.main);
+    const primary = hslStr(hsl.h, hsl.s, hsl.l);
+    return {
+      "--primary": primary,
+      "--primary-foreground": "0 0% 100%",
+      "--ring": primary,
+      "--accent": hslStr(hsl.h, hsl.s, 96),
+      "--accent-foreground": hslStr(hsl.h, hsl.s, 30),
+      "--chart-1": primary,
+    };
+  }
+  return COLOR_THEMES.ocean.vars;
+}
+
+// Get a CSS color string for previewing a color theme value.
+export function getColorThemeSwatch(value) {
+  if (COLOR_THEMES[value]) return `hsl(${COLOR_THEMES[value].vars["--primary"]})`;
+  const custom = parseCustomColorTheme(value);
+  if (custom) return custom.main;
+  return "#999";
+}
+
+// Check if a color theme value is a dark theme.
+export function isColorThemeDark(value) {
+  if (COLOR_THEMES[value]) return COLOR_THEMES[value].dark;
+  return false;
 }

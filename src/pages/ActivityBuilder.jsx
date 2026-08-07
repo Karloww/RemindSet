@@ -12,6 +12,8 @@ import { toast } from "@/components/ui/use-toast";
 import ActivityPreview from "@/components/activity/ActivityPreview";
 import ActivitySettings from "@/components/activity/ActivitySettings";
 import ActivityResponses from "@/components/activity/ActivityResponses";
+import ActivityComment from "@/components/activity/ActivityComment";
+import QuestionnaireImportExport from "@/components/activity/QuestionnaireImportExport";
 
 const newQuestion = (defaultPoints = 1) => ({
   id: Date.now() + Math.random(),
@@ -24,7 +26,7 @@ const newQuestion = (defaultPoints = 1) => ({
   required: true,
 });
 
-const TABS = ["Questions", "Preview", "Settings", "Responses"];
+const TABS = ["Questions", "Preview", "Settings", "Responses", "Comments"];
 
 export default function ActivityBuilder() {
   const { id: classroomId, activityId } = useParams();
@@ -37,7 +39,7 @@ export default function ActivityBuilder() {
   const [description, setDescription] = useState("");
   const [actType, setActType] = useState("quiz");
   const [questions, setQuestions] = useState([newQuestion()]);
-  const [settings, setSettings] = useState({ jumble: false, defaultPoints: 1, status: "open", deadline: "", requireAll: true, allowPrev: true, assignedIds: [] });
+  const [settings, setSettings] = useState({ jumble: false, jumbleChoices: false, defaultPoints: 1, status: "open", deadline: "", requireAll: true, allowPrev: true, allowPause: true, coinsReward: 0, timeLimitMinutes: 0, maxRetakes: 0, assignedIds: [], scheduleDate: "", scheduleTime: "" });
   const [uploadFile, setUploadFile] = useState(null);
   const [linkUrl, setLinkUrl] = useState("");
   const [saving, setSaving] = useState(false);
@@ -56,7 +58,25 @@ export default function ActivityBuilder() {
         setActType(a.type || "quiz");
         setLinkUrl(a.link_url || "");
         if (a.questions) setQuestions(JSON.parse(a.questions));
-        if (a.settings) setSettings(JSON.parse(a.settings));
+        if (a.settings) {
+          const parsed = JSON.parse(a.settings);
+          setSettings({
+            jumble: parsed.jumble ?? false,
+            jumbleChoices: parsed.jumbleChoices ?? false,
+            defaultPoints: parsed.defaultPoints ?? 1,
+            status: parsed.status ?? a.status ?? "open",
+            deadline: parsed.deadline ?? a.deadline ?? "",
+            requireAll: parsed.requireAll ?? true,
+            allowPrev: parsed.allowPrev ?? true,
+            allowPause: parsed.allowPause ?? a.allow_pause ?? true,
+            coinsReward: parsed.coinsReward ?? a.coins_reward ?? 0,
+            timeLimitMinutes: parsed.timeLimitMinutes ?? a.time_limit_minutes ?? 0,
+            maxRetakes: parsed.maxRetakes ?? a.max_retakes ?? 0,
+            assignedIds: parsed.assignedIds ?? [],
+            scheduleDate: parsed.scheduleDate ?? "",
+            scheduleTime: parsed.scheduleTime ?? "",
+          });
+        }
       } finally {
         setLoading(false);
       }
@@ -69,6 +89,31 @@ export default function ActivityBuilder() {
     const copy = { ...qs[idx], id: Date.now() + Math.random(), options: [...qs[idx].options] };
     return [...qs.slice(0, idx + 1), copy, ...qs.slice(idx + 1)];
   });
+
+  // Import a previously exported questionnaire. Questions replace the current set;
+  // quiz behavior settings are copied, but class-specific schedule/assignments are kept.
+  const handleImport = ({ questions: imported, settings: importedSettings, type: importedType, title: importedTitle, description: importedDesc }) => {
+    if (Array.isArray(imported) && imported.length > 0) {
+      setQuestions(imported.map((q) => ({ ...q, id: Date.now() + Math.random() })));
+    }
+    if (importedSettings) {
+      setSettings((prev) => ({
+        ...prev,
+        jumble: importedSettings.jumble ?? prev.jumble,
+        jumbleChoices: importedSettings.jumbleChoices ?? prev.jumbleChoices,
+        defaultPoints: importedSettings.defaultPoints ?? prev.defaultPoints,
+        requireAll: importedSettings.requireAll ?? prev.requireAll,
+        allowPrev: importedSettings.allowPrev ?? prev.allowPrev,
+        allowPause: importedSettings.allowPause ?? prev.allowPause,
+        timeLimitMinutes: importedSettings.timeLimitMinutes ?? prev.timeLimitMinutes,
+        maxRetakes: importedSettings.maxRetakes ?? prev.maxRetakes,
+        coinsReward: importedSettings.coinsReward ?? prev.coinsReward,
+      }));
+    }
+    if (importedType) setActType(importedType);
+    if (importedTitle) setTitle(importedTitle);
+    if (importedDesc) setDescription(importedDesc);
+  };
   const updateQuestion = (idx, field, value) => setQuestions((qs) => qs.map((q, i) => i === idx ? { ...q, [field]: value } : q));
   const updateOption = (qi, oi, val) => setQuestions((qs) => qs.map((q, i) => i === qi ? { ...q, options: q.options.map((o, j) => j === oi ? val : o) } : q));
   const addOption = (qi) => setQuestions((qs) => qs.map((q, i) => i === qi ? { ...q, options: [...q.options, ""] } : q));
@@ -108,8 +153,13 @@ export default function ActivityBuilder() {
         deadline: settings.deadline || "",
         default_points: settings.defaultPoints,
         jumble_questions: settings.jumble,
+        jumble_choices: settings.jumbleChoices ?? false,
         require_all: settings.requireAll,
         allow_prev: settings.allowPrev,
+        allow_pause: settings.allowPause ?? true,
+        coins_reward: settings.coinsReward ?? 0,
+        time_limit_minutes: settings.timeLimitMinutes ?? 0,
+        max_retakes: settings.maxRetakes ?? 0,
         assigned_student_ids: JSON.stringify(settings.assignedIds || []),
         file_url: fileUrl,
         link_url: linkUrl,
@@ -121,6 +171,36 @@ export default function ActivityBuilder() {
       } else {
         const created = await base44.entities.Activity.create(data);
         toast({ title: "Activity created!" });
+
+        // Notify enrolled students via backend function (respects preferences + email)
+        if (settings.status !== "closed") {
+          const enrollments = await base44.entities.ClassroomEnrollment.filter({ classroom_id: classroomId }, "created_date", 200);
+          const assignedIds = settings.assignedIds?.length > 0 ? settings.assignedIds : null;
+          const recipients = (enrollments || []).filter((e) => {
+            const sid = e.student_id || e.created_by_id;
+            return !assignedIds || assignedIds.includes(sid);
+          });
+          if (recipients.length > 0) {
+            const scheduledISO = settings.scheduleDate
+              ? new Date(`${settings.scheduleDate}T${settings.scheduleTime || "00:00"}`).toISOString()
+              : "";
+            await base44.functions.invoke("sendNotifications", {
+              notifications: recipients.map((e) => ({
+                user_id: e.student_id || e.created_by_id,
+                title: "New activity assigned",
+                message: `${profile ? `${profile.first_name} ${profile.last_name}` : "Your teacher"} posted a new activity: "${title.trim()}"`,
+                activity_id: created.id,
+                classroom_id: classroomId,
+                type: "activity",
+                category: "activity",
+                scheduled_date: scheduledISO,
+                deadline: settings.deadline || "",
+                link: `${window.location.origin}/classrooms/${classroomId}/activities/${created.id}/take`,
+                })),
+            });
+          }
+        }
+
         navigate(`/classrooms/${classroomId}/activities/${created.id}`, { replace: true });
       }
     } catch (err) {
@@ -134,14 +214,24 @@ export default function ActivityBuilder() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-4">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <button onClick={() => navigate(`/classrooms/${classroomId}`)} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="w-4 h-4" /> Back
         </button>
-        <Button onClick={handleSave} disabled={saving} className="ml-auto">
-          {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-          {activityId ? "Save Changes" : "Create Activity"}
-        </Button>
+        <div className="ml-auto flex items-center gap-2">
+          <QuestionnaireImportExport
+            title={title}
+            description={description}
+            actType={actType}
+            questions={questions}
+            settings={settings}
+            onImport={handleImport}
+          />
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+            {activityId ? "Save Changes" : "Create Activity"}
+          </Button>
+        </div>
       </div>
 
       {/* Title & Description */}
@@ -225,7 +315,12 @@ export default function ActivityBuilder() {
       )}
       {tab === "Preview" && <ActivityPreview title={title} description={description} questions={questions} actType={actType} linkUrl={linkUrl} settings={settings} />}
       {tab === "Settings" && <ActivitySettings settings={settings} onUpdate={setSettings} classroomId={classroomId} />}
-      {tab === "Responses" && <ActivityResponses activityId={activityId} classroomId={classroomId} questions={questions} />}
+      {tab === "Responses" && <ActivityResponses activityId={activityId} classroomId={classroomId} questions={questions} activity={activity} />}
+      {tab === "Comments" && activityId ? (
+        <ActivityComment activityId={activityId} />
+      ) : tab === "Comments" ? (
+        <div className="text-center py-10 text-muted-foreground text-sm bg-card border border-dashed border-border rounded-2xl">Save the activity first to enable comments.</div>
+      ) : null}
     </div>
   );
 }

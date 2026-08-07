@@ -1,7 +1,7 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
-import { COLOR_THEMES, BACKGROUNDS, isUrlValue, isCssValue } from "@/lib/themes";
+import { COLOR_THEMES, BACKGROUNDS, isUrlValue, isCssValue, resolveColorThemeVars, isColorThemeDark } from "@/lib/themes";
 
 const ProfileContext = createContext();
 
@@ -35,10 +35,10 @@ export const ProfileProvider = ({ children }) => {
   // Apply theme: color variables + dark class + app background.
   useEffect(() => {
     const root = document.documentElement;
-    const themeId = profile?.selected_color_theme || "indigo";
-    const theme = COLOR_THEMES[themeId] || COLOR_THEMES.indigo;
-    Object.entries(theme.vars).forEach(([k, v]) => root.style.setProperty(k, v));
-    if (theme.dark) root.classList.add("dark"); else root.classList.remove("dark");
+    const themeId = profile?.selected_color_theme || "ocean";
+    const themeVars = resolveColorThemeVars(themeId);
+    Object.entries(themeVars).forEach(([k, v]) => root.style.setProperty(k, v));
+    if (isColorThemeDark(themeId)) root.classList.add("dark"); else root.classList.remove("dark");
 
     const bgId = profile?.selected_background || "none";
     const bg = BACKGROUNDS[bgId];

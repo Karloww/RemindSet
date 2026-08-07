@@ -1,12 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { useAuth } from "@/lib/AuthContext";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Loader2 } from "lucide-react";
+import { Loader2, Coins, Clock, CalendarClock } from "lucide-react";
 
 export default function ActivitySettings({ settings, onUpdate, classroomId }) {
-  const { user } = useAuth();
   const [students, setStudents] = useState([]);
   const [loadingStudents, setLoadingStudents] = useState(true);
 
@@ -41,15 +39,42 @@ export default function ActivitySettings({ settings, onUpdate, classroomId }) {
           </select>
         </div>
       </div>
+
+      {/* Coins reward */}
+      <div className="space-y-2">
+        <Label className="flex items-center gap-1.5"><Coins className="w-4 h-4 text-amber-500" /> Coins Reward (on completion)</Label>
+        <Input type="number" min="0" value={settings.coinsReward ?? 0} onChange={(e) => set("coinsReward", Number(e.target.value))} placeholder="0" />
+        <p className="text-xs text-muted-foreground">Students earn this many coins when they finish the activity.</p>
+      </div>
+
       <div className="space-y-2">
         <Label>Deadline (optional)</Label>
         <Input type="datetime-local" value={settings.deadline} onChange={(e) => set("deadline", e.target.value)} />
       </div>
+
+      {/* Schedule publish */}
+      <div className="space-y-2">
+        <Label className="flex items-center gap-1.5"><CalendarClock className="w-3.5 h-3.5" /> Schedule (optional)</Label>
+        <div className="grid grid-cols-2 gap-2">
+          <Input type="date" value={settings.scheduleDate || ""} onChange={(e) => set("scheduleDate", e.target.value)} />
+          <Input type="time" value={settings.scheduleTime || ""} onChange={(e) => set("scheduleTime", e.target.value)} />
+        </div>
+        <p className="text-xs text-muted-foreground">Deliver to students at this date/time.</p>
+      </div>
+
+      {/* Time limit */}
+      <div className="space-y-2">
+        <Label className="flex items-center gap-1.5"><Clock className="w-4 h-4 text-blue-500" /> Time Limit (minutes, 0 = no limit)</Label>
+        <Input type="number" min="0" value={settings.timeLimitMinutes ?? 0} onChange={(e) => set("timeLimitMinutes", Number(e.target.value))} placeholder="e.g. 60" />
+      </div>
+
       <div className="space-y-2">
         {[
           { key: "jumble", label: "Jumble (randomize) questions" },
+          { key: "jumbleChoices", label: "Jumble choices (randomize options)" },
           { key: "requireAll", label: "Require all questions to be answered" },
           { key: "allowPrev", label: "Allow going back to previous questions" },
+          { key: "allowPause", label: "Allow students to pause the activity" },
         ].map(({ key, label }) => (
           <label key={key} className="flex items-center gap-3 cursor-pointer">
             <input type="checkbox" checked={!!settings[key]} onChange={(e) => set(key, e.target.checked)} className="w-4 h-4" />
@@ -57,6 +82,7 @@ export default function ActivitySettings({ settings, onUpdate, classroomId }) {
           </label>
         ))}
       </div>
+
       <div className="space-y-2">
         <Label>Assign to specific students (leave empty = all)</Label>
         {loadingStudents ? (

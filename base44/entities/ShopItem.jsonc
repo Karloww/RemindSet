@@ -9,7 +9,6 @@
       "type": "string",
       "enum": [
         "color_theme",
-        "background",
         "cover_photo",
         "profile_icon"
       ]
@@ -32,6 +31,12 @@
     "value": {
       "type": "string"
     },
+    "main_color": {
+      "type": "string"
+    },
+    "bg_color": {
+      "type": "string"
+    },
     "description": {
       "type": "string"
     }
@@ -40,8 +45,7 @@
     "name",
     "type",
     "rarity",
-    "price",
-    "value"
+    "price"
   ],
   "rls": {
     "create": {

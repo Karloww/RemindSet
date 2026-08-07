@@ -6,7 +6,6 @@ import { useProfile } from "@/lib/ProfileContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Save, Trash2, Mail, KeyRound } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 
@@ -18,9 +17,11 @@ export default function ManageAccount() {
   const [lastName, setLastName] = useState(profile?.last_name || "");
   const [username, setUsername] = useState(profile?.username || "");
   const [gender, setGender] = useState(profile?.gender || "");
-  const [bio, setBio] = useState(profile?.bio || "");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showOnline, setShowOnline] = useState(profile?.show_online ?? true);
+  const [allowFriendships, setAllowFriendships] = useState(profile?.allow_friendships ?? true);
+  const [appearInSearch, setAppearInSearch] = useState(profile?.appear_in_search ?? true);
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -30,7 +31,7 @@ export default function ManageAccount() {
     }
     setSaving(true);
     try {
-      const updated = await base44.entities.Profile.update(profile.id, { first_name: firstName, last_name: lastName, username, gender: gender || "other", bio });
+      const updated = await base44.entities.Profile.update(profile.id, { first_name: firstName, last_name: lastName, username, gender: gender || "other", show_online: showOnline, allow_friendships: allowFriendships, appear_in_search: appearInSearch });
       setProfile(updated);
       toast({ title: "Changes saved!", description: "Your profile has been updated." });
     } catch (err) {
@@ -100,10 +101,6 @@ export default function ManageAccount() {
             <Input id="username" value={username} onChange={(e) => setUsername(e.target.value)} required />
           </div>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="bio">Bio</Label>
-          <Textarea id="bio" value={bio} onChange={(e) => setBio(e.target.value)} rows={3} placeholder="Tell us a bit about yourself…" />
-        </div>
 
         {/* Email (read-only — platform constraint) */}
         <div className="space-y-2">
@@ -125,6 +122,32 @@ export default function ManageAccount() {
             </div>
           </div>
           <Button type="button" variant="outline" onClick={handleResetPassword}>Reset</Button>
+        </div>
+
+        {/* Privacy Settings */}
+        <div className="space-y-3 rounded-xl border border-border p-4">
+          <p className="text-sm font-semibold">Privacy Settings</p>
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" checked={showOnline} onChange={(e) => setShowOnline(e.target.checked)} className="w-4 h-4" />
+            <div>
+              <p className="text-sm font-medium">Show online status</p>
+              <p className="text-xs text-muted-foreground">If turned off, other users won't see if you're online or offline.</p>
+            </div>
+          </label>
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" checked={allowFriendships} onChange={(e) => setAllowFriendships(e.target.checked)} className="w-4 h-4" />
+            <div>
+              <p className="text-sm font-medium">Allow friendships</p>
+              <p className="text-xs text-muted-foreground">If disabled, other users can't send or accept friend requests from you.</p>
+            </div>
+          </label>
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" checked={appearInSearch} onChange={(e) => setAppearInSearch(e.target.checked)} className="w-4 h-4" />
+            <div>
+              <p className="text-sm font-medium">Appear in Search</p>
+              <p className="text-xs text-muted-foreground">If disabled, other users won't find your profile in the search bar.</p>
+            </div>
+          </label>
         </div>
 
         <Button type="submit" className="w-full h-12" disabled={saving}>

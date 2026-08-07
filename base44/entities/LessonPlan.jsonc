@@ -33,6 +33,14 @@
     },
     "classroom_id": {
       "type": "string"
+    },
+    "visibility": {
+      "type": "string",
+      "enum": [
+        "open",
+        "closed"
+      ],
+      "default": "open"
     }
   },
   "required": [

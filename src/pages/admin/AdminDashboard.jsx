@@ -94,7 +94,7 @@ export default function AdminDashboard() {
                 <p className="font-medium">{link.label}</p>
                 <p className="text-sm text-muted-foreground">{link.desc}</p>
               </div>
-              <ArrowRight className="w-5 h-5 text-muted-foreground shrink-0" />
+              <ArrowRight className="w-5 h-5 text-muted-foreground" />
             </button>
           ))}
         </div>

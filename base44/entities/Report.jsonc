@@ -1,0 +1,78 @@
+{
+  "name": "Report",
+  "type": "object",
+  "properties": {
+    "reporter_id": {
+      "type": "string"
+    },
+    "reporter_name": {
+      "type": "string"
+    },
+    "reported_user_id": {
+      "type": "string"
+    },
+    "reported_user_name": {
+      "type": "string"
+    },
+    "target_type": {
+      "type": "string",
+      "enum": [
+        "message",
+        "announcement",
+        "activity_comment",
+        "announcement_comment",
+        "file",
+        "other"
+      ],
+      "default": "other"
+    },
+    "target_id": {
+      "type": "string"
+    },
+    "reason": {
+      "type": "string"
+    },
+    "content_snapshot": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "reviewed",
+        "resolved"
+      ],
+      "default": "pending"
+    }
+  },
+  "required": [
+    "reporter_id",
+    "target_type",
+    "reason"
+  ],
+  "rls": {
+    "create": true,
+    "read": {
+      "$or": [
+        {
+          "data.reporter_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

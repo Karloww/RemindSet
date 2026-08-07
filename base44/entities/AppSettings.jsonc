@@ -9,6 +9,10 @@
     "maintenance_message": {
       "type": "string",
       "default": "The app is currently under maintenance. Please check back later."
+    },
+    "teacher_secret_code": {
+      "type": "string",
+      "default": ""
     }
   },
   "rls": {
@@ -28,5 +32,6 @@
         "role": "admin"
       }
     }
-  }
+  },
+  "required": []
 }

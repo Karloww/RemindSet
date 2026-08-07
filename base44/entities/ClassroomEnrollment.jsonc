@@ -19,6 +19,10 @@
     },
     "teacher_name": {
       "type": "string"
+    },
+    "archived": {
+      "type": "boolean",
+      "default": false
     }
   },
   "required": [
@@ -30,7 +34,14 @@
     "create": true,
     "read": true,
     "update": {
-      "created_by_id": "{{user.id}}"
+      "$or": [
+        {
+          "data.student_id": "{{user.id}}"
+        },
+        {
+          "created_by_id": "{{user.id}}"
+        }
+      ]
     },
     "delete": {
       "$or": [

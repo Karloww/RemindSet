@@ -1,5 +1,5 @@
 {
-  "name": "Figma: RemindSet",
+  "name": "New App",
   "site": {
     "installCommand": "npm install",
     "buildCommand": "npm run build",

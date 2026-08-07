@@ -42,7 +42,7 @@
     },
     "selected_color_theme": {
       "type": "string",
-      "default": "indigo"
+      "default": "ocean"
     },
     "selected_background": {
       "type": "string",
@@ -55,6 +55,54 @@
     "selected_profile_icon": {
       "type": "string",
       "default": "default"
+    },
+    "notify_activity": {
+      "type": "boolean",
+      "default": true
+    },
+    "notify_lesson": {
+      "type": "boolean",
+      "default": true
+    },
+    "notify_message": {
+      "type": "boolean",
+      "default": true
+    },
+    "email_notifications": {
+      "type": "boolean",
+      "default": false
+    },
+    "show_online": {
+      "type": "boolean",
+      "default": true
+    },
+    "allow_friendships": {
+      "type": "boolean",
+      "default": true
+    },
+    "appear_in_search": {
+      "type": "boolean",
+      "default": true
+    },
+    "social_media": {
+      "type": "string"
+    },
+    "teacher_activity_done": {
+      "type": "string",
+      "enum": [
+        "every_student",
+        "after_deadline",
+        "disabled"
+      ],
+      "default": "every_student"
+    },
+    "teacher_lesson_done": {
+      "type": "string",
+      "enum": [
+        "every_student",
+        "disabled"
+      ],
+      "default": "every_student"
     }
   },
   "required": [

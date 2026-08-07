@@ -1,0 +1,68 @@
+{
+  "name": "Conversation",
+  "type": "object",
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": [
+        "direct",
+        "group"
+      ],
+      "default": "direct"
+    },
+    "name": {
+      "type": "string"
+    },
+    "participant_ids": {
+      "type": "string"
+    },
+    "participant_names": {
+      "type": "string"
+    },
+    "last_message": {
+      "type": "string"
+    },
+    "last_message_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "last_sender_id": {
+      "type": "string"
+    },
+    "last_sender_name": {
+      "type": "string"
+    },
+    "is_request": {
+      "type": "boolean",
+      "default": false
+    },
+    "archived": {
+      "type": "boolean",
+      "default": false
+    },
+    "muted_until": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "group_picture_url": {
+      "type": "string"
+    },
+    "admin_ids": {
+      "type": "string",
+      "default": "[]"
+    },
+    "invite_link": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "type",
+    "participant_ids"
+  ],
+  "rls": {
+    "create": true,
+    "read": true,
+    "update": true,
+    "delete": true
+  }
+}

@@ -3,7 +3,8 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Shield, ShieldOff, Loader2, AlertTriangle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Shield, ShieldOff, Loader2, AlertTriangle, KeyRound, Eye, EyeOff } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 
 export default function MaintenanceMode() {
@@ -12,6 +13,9 @@ export default function MaintenanceMode() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [teacherCode, setTeacherCode] = useState("");
+  const [showCode, setShowCode] = useState(false);
+  const [savingCode, setSavingCode] = useState(false);
 
   const load = async () => {
     try {
@@ -20,8 +24,10 @@ export default function MaintenanceMode() {
         setSettings(list[0]);
         setSettingsId(list[0].id);
         setMessage(list[0].maintenance_message || "");
+        setTeacherCode(list[0].teacher_secret_code || "");
       } else {
-        setSettings({ maintenance_mode: false, maintenance_message: "" });
+        setSettings({ maintenance_mode: false, maintenance_message: "", teacher_secret_code: "" });
+        setTeacherCode("");
       }
     } finally { setLoading(false); }
   };
@@ -58,6 +64,21 @@ export default function MaintenanceMode() {
     } finally { setSaving(false); }
   };
 
+  const handleSaveTeacherCode = async () => {
+    setSavingCode(true);
+    try {
+      if (settingsId) {
+        await base44.entities.AppSettings.update(settingsId, { teacher_secret_code: teacherCode });
+      } else {
+        const created = await base44.entities.AppSettings.create({ maintenance_mode: false, maintenance_message: message, teacher_secret_code: teacherCode });
+        setSettingsId(created.id);
+      }
+      toast({ title: "Teacher Secret Code saved!" });
+    } catch (err) {
+      toast({ title: "Failed", description: err.message, variant: "destructive" });
+    } finally { setSavingCode(false); }
+  };
+
   if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
 
   const isOn = settings?.maintenance_mode;
@@ -83,11 +104,43 @@ export default function MaintenanceMode() {
           <Textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={3} placeholder="e.g. We're performing scheduled maintenance. Back at 3:00 PM." />
         </div>
         <div className="flex gap-3">
-          <Button onClick={handleToggle} disabled={saving} className={isOn ? "bg-emerald-600 hover:bg-emerald-700" : "bg-amber-500 hover:bg-amber-600"}>
+          <Button onClick={handleToggle} disabled={saving} className={isOn ? "bg-amber-600 hover:bg-amber-600" : ""}>
             {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : isOn ? <ShieldOff className="w-4 h-4 mr-2" /> : <Shield className="w-4 h-4 mr-2" />}
             {isOn ? "Disable Maintenance" : "Enable Maintenance"}
           </Button>
           {settingsId && <Button variant="outline" onClick={handleSaveMessage} disabled={saving}>Save Message</Button>}
+        </div>
+      </div>
+      {/* Teacher Secret Code */}
+      <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="rounded-lg bg-primary/10 p-2 text-primary"><KeyRound className="w-5 h-5" /></div>
+          <div>
+            <h2 className="font-bold">Teacher Secret Code</h2>
+            <p className="text-sm text-muted-foreground">Only users with this code can register as a teacher.</p>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label>Secret Code</Label>
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <input
+                type={showCode ? "text" : "password"}
+                value={teacherCode}
+                onChange={(e) => setTeacherCode(e.target.value)}
+                placeholder="Set a secret code for teachers…"
+                className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background pr-10 font-mono"
+              />
+              <button type="button" onClick={() => setShowCode(!showCode)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                {showCode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            <Button onClick={handleSaveTeacherCode} disabled={savingCode}>
+              {savingCode ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save"}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">Leave empty to disable teacher code validation.</p>
         </div>
       </div>
     </div>

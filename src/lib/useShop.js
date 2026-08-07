@@ -30,12 +30,12 @@ export function useShop() {
   const isTeacher = profile?.account_type === "teacher";
   const ownedValues = new Set(purchases.map((p) => p.item_value));
   // Defaults are always "owned". Teachers get everything for free.
-  const isOwned = (type, value) => isTeacher || value === "default" || value === "indigo" || value === "none" || ownedValues.has(value);
+  const isOwned = (type, value) => isTeacher || value === "default" || value === "ocean" || value === "none" || ownedValues.has(value);
 
   const buy = async (item) => {
     if (ownedValues.has(item.value)) return true;
     if ((profile.points || 0) < item.price) {
-      toast({ title: "Not enough points", description: `You need ${item.price - profile.points} more points.`, variant: "destructive" });
+      toast({ title: "Not enough coins", description: `You need ${item.price - (profile.points || 0)} more coins.`, variant: "destructive" });
       return false;
     }
     try {
@@ -43,7 +43,7 @@ export function useShop() {
       const updatedProfile = await base44.entities.Profile.update(profile.id, { points: newPoints });
       setProfile(updatedProfile);
       await base44.entities.UserPurchase.create({
-        shop_item_id: item.id, item_type: item.type, item_value: item.value, item_name: item.name, rarity: item.rarity,
+        shop_item_id: item.id || item.value, item_type: item.type, item_value: item.value, item_name: item.name, rarity: item.rarity,
       });
       await reload();
       toast({ title: "Purchased!", description: `${item.name} is now yours.` });

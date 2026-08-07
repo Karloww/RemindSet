@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useProfile } from "@/lib/ProfileContext";
 import { useShop } from "@/lib/useShop";
 import { Button } from "@/components/ui/button";
-import { Loader2, Check, Lock, Coins, Palette } from "lucide-react";
+import { Loader2, Check, Coins, Palette } from "lucide-react";
 import ItemPreview from "@/components/ItemPreview";
-import { COLOR_THEMES, BACKGROUNDS, COVER_PHOTOS, PROFILE_ICONS, SHOP_CATALOG, RARITY_INFO, isUrlValue, isCssValue } from "@/lib/themes";
+import { COLOR_THEMES, BACKGROUNDS, COVER_PHOTOS, PROFILE_ICONS, SHOP_CATALOG, RARITY_INFO, isUrlValue } from "@/lib/themes";
 
 const STATIC_MAPS = {
   color_theme: COLOR_THEMES,
@@ -17,14 +16,13 @@ const STATIC_MAPS = {
 
 const TAB_DEFS = [
   { id: "color_theme", label: "Color" },
-  { id: "background", label: "Background" },
   { id: "cover_photo", label: "Cover" },
   { id: "profile_icon", label: "Icon" },
 ];
 
 export default function CustomizeTheme() {
   const { profile } = useProfile();
-  const { isOwned, isEquipped, equip, loading } = useShop();
+  const { isOwned, isEquipped, equip, buy, loading } = useShop();
   const [tab, setTab] = useState("color_theme");
   const [busy, setBusy] = useState({});
   const [shopItems, setShopItems] = useState([]);
@@ -64,8 +62,19 @@ export default function CustomizeTheme() {
   const activeTab = tabs.find((t) => t.id === tab);
 
   const handleEquip = async (opt) => {
-    setBusy((b) => ({ ...b, [opt.id]: true }));
+    setBusy((b) => ({ ...b, [opt.id]: "equip" }));
     await equip(tab, opt.id, opt.name);
+    setBusy((b) => ({ ...b, [opt.id]: false }));
+  };
+
+  const handleBuy = async (opt) => {
+    const meta = priceMap[opt.id];
+    if (!meta) return;
+    setBusy((b) => ({ ...b, [opt.id]: "buy" }));
+    const success = await buy({ id: opt.id, type: tab, value: opt.id, name: opt.name, price: meta.price, rarity: meta.rarity });
+    if (success) {
+      await equip(tab, opt.id, opt.name);
+    }
     setBusy((b) => ({ ...b, [opt.id]: false }));
   };
 
@@ -77,7 +86,7 @@ export default function CustomizeTheme() {
           <p className="text-muted-foreground text-sm mt-1">Restyle your whole app. Changes apply instantly.</p>
         </div>
         <div className="inline-flex items-center gap-1.5 bg-primary/10 text-primary px-3 py-1.5 rounded-full font-semibold">
-          <Coins className="w-4 h-4" /> {isTeacher ? "Free" : `${profile?.points || 0} pts`}
+          <Coins className="w-4 h-4" /> {isTeacher ? "Free" : `${profile?.points || 0} coins`}
         </div>
       </div>
 
@@ -129,12 +138,12 @@ export default function CustomizeTheme() {
                     </Button>
                   ) : isTeacher ? (
                     <Button variant="outline" className="w-full" disabled={state} onClick={() => handleEquip(opt)}>
-                      {state ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Check className="w-4 h-4 mr-1" />} Apply
+                      {state === "equip" ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Check className="w-4 h-4 mr-1" />} Apply
                     </Button>
                   ) : (
-                    <Link to="/shop" className="w-full inline-flex items-center justify-center gap-1 text-sm font-medium py-2.5 rounded-lg bg-muted text-muted-foreground hover:bg-accent">
-                      <Lock className="w-3.5 h-3.5" /> {meta ? meta.price : "—"} pts
-                    </Link>
+                    <Button className="w-full" disabled={state === "buy"} onClick={() => handleBuy(opt)}>
+                      {state === "buy" ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Coins className="w-4 h-4 mr-1" />} {meta ? meta.price : "—"}
+                    </Button>
                   )}
                 </div>
               </div>
@@ -146,7 +155,7 @@ export default function CustomizeTheme() {
       <div className="text-center text-sm text-muted-foreground pt-2">
         {isTeacher
           ? "All themes are free for teachers — apply any style instantly."
-          : <>Need more options? <Link to="/shop" className="text-primary font-medium hover:underline">Browse the Shop</Link></>}
+          : "Earn coins by completing lessons and activities to unlock more items."}
       </div>
     </div>
   );

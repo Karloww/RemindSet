@@ -83,17 +83,19 @@ export default function AssignLesson() {
       const now = new Date().toISOString();
       const visible = created.filter((a) => !a.scheduled_date || a.scheduled_date <= now);
       if (visible.length > 0) {
-        await base44.entities.Notification.bulkCreate(
-          visible.map((a) => ({
+        await base44.functions.invoke("sendNotifications", {
+          notifications: visible.map((a) => ({
             user_id: a.student_id,
             title: "New lesson assigned",
             message: `${teacherName} assigned you "${lesson.title}" (${lesson.subject}).`,
-            read: false,
             assignment_id: a.id,
             classroom_id: id,
+            type: "lesson",
+            category: "lesson",
             scheduled_date: a.scheduled_date || "",
-          }))
-        );
+            link: `${window.location.origin}/lessons/${lesson.id}`,
+          })),
+        });
       }
       toast({ title: "Assigned!", description: `Lesson sent to ${selected.size} student${selected.size !== 1 ? "s" : ""}.` });
       navigate(`/classrooms/${id}`);
@@ -114,7 +116,7 @@ export default function AssignLesson() {
       </button>
 
       <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 text-center">
-        <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto mb-2" />
+        <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto mb-2" />
         <h2 className="font-bold text-lg">Lesson uploaded!</h2>
         <p className="text-sm text-muted-foreground">Now assign it to your students.</p>
       </div>

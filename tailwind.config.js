@@ -59,14 +59,13 @@ module.exports = {
   				'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
   				border: 'hsl(var(--sidebar-border))',
   				ring: 'hsl(var(--sidebar-ring))'
-  			},
-  		
-  		
-  		'figma-text-1': 'hsl(var(--figma-text-1))',
-  		
-  		'figma-text-2': 'hsl(var(--figma-text-2))',
-  		
-  		
+  			}
+  		},
+  		fontFamily: {
+  			heading: ['var(--font-heading)'],
+  			body: ['var(--font-body)'],
+  			display: ['var(--font-display)'],
+  			mono: ['var(--font-mono)']
   		},
   		keyframes: {
   			'accordion-down': {
@@ -89,48 +88,8 @@ module.exports = {
   		animation: {
   			'accordion-down': 'accordion-down 0.2s ease-out',
   			'accordion-up': 'accordion-up 0.2s ease-out'
-  		},
-  		
-  		
-  		fontSize: {
-  			
-  			'figma-16': '16px',
-  			
-  			'figma-28': '28px',
-  			
-  		},
-  		
-  		
-  		fontWeight: {
-  			
-  			'figma-normal': '400',
-  			
-  			'figma-medium': '500',
-  			
-  		},
-  		
-  		
-  		lineHeight: {
-  			
-  			'figma-16': '16px',
-  			
-  			'figma-24': '24px',
-  			
-  			'figma-36': '36px',
-  			
-  		},
-  		
-  		
-  		fontFamily: {
-  			
-  			'heading': ['"Roboto"', 'sans-serif'],
-  			
-  			'paragraph': ['"Inter"', 'sans-serif'],
-  			
-  		},
-  		
-  		
+  		}
   	}
   },
   plugins: [require("tailwindcss-animate")],
-};
+}

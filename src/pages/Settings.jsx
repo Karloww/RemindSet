@@ -2,7 +2,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
 import { useProfile } from "@/lib/ProfileContext";
-import { HelpCircle, Palette, UserCog, LogOut, ChevronRight, BookOpenCheck } from "lucide-react";
+import { HelpCircle, Palette, UserCog, LogOut, ChevronRight, BookOpenCheck, Bell } from "lucide-react";
 import ProfileAvatar from "@/components/ProfileAvatar";
 import RoleBadge from "@/components/RoleBadge";
 
@@ -15,6 +15,7 @@ export default function Settings() {
     { label: "How to Use", desc: "Learn how RemindSet works", icon: HelpCircle, to: "/how-to-use" },
     { label: "Customize Theme", desc: "Color, background, cover & icon", icon: Palette, to: "/customize-theme" },
     { label: "Manage Account", desc: "Edit your profile & security", icon: UserCog, to: "/manage-account" },
+    { label: "Notification Settings", desc: "Choose which notifications you receive", icon: Bell, to: "/notification-settings" },
   ];
 
   return (
@@ -32,10 +33,12 @@ export default function Settings() {
           <p className="text-sm text-muted-foreground truncate">@{profile?.username}</p>
           <div className="mt-1.5"><RoleBadge accountType={profile?.account_type} /></div>
         </div>
-        <div className="text-right">
-          <p className="text-xs text-muted-foreground">Points</p>
-          <p className="text-xl font-bold text-primary">{profile?.points || 0}</p>
-        </div>
+        {profile?.account_type !== "teacher" && (
+          <div className="text-right">
+            <p className="text-xs text-muted-foreground">Coins</p>
+            <p className="text-xl font-bold text-primary">{profile?.points || 0}</p>
+          </div>
+        )}
       </div>
 
       {/* Menu */}

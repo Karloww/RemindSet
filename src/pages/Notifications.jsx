@@ -17,13 +17,19 @@ export default function Notifications() {
     try {
       const data = await base44.entities.Notification.filter({ user_id: user.id }, "-created_date", 50);
       const now = new Date().toISOString();
-      setItems((data || []).filter((n) => !n.scheduled_date || n.scheduled_date <= now));
+      setItems((data || []).filter((n) => n.type !== "admin" && (!n.scheduled_date || n.scheduled_date <= now)));
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { load(); }, [user]);
+  useEffect(() => {
+    load();
+    const unsubscribe = base44.entities.Notification.subscribe(() => {
+      load();
+    });
+    return () => { unsubscribe?.(); };
+  }, [user]);
 
   const markAllRead = async () => {
     try {
@@ -43,7 +49,9 @@ export default function Notifications() {
       } catch (e) { /* ignore */ }
       setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
     }
-    if (n.classroom_id) {
+    if (n.activity_id && n.classroom_id) {
+      navigate(`/classrooms/${n.classroom_id}/activities/${n.activity_id}/take`);
+    } else if (n.classroom_id) {
       navigate(`/classrooms/${n.classroom_id}`);
     } else if (n.assignment_id) {
       navigate(`/lessons/${n.assignment_id}`);
@@ -93,7 +101,7 @@ export default function Notifications() {
                     const match = n.message.match(/\[link:([^\]]+)\]/);
                     return match ? <a href={match[1]} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary text-xs mt-1 hover:underline">🔗 {match[1]}</a> : null;
                   })()}
-                  <p className="text-xs text-muted-foreground mt-1">{n.created_date ? new Date(n.created_date).toLocaleString() : ""}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{new Date(n.created_date).toLocaleString()}</p>
                 </div>
                 {clickable && <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0 self-center" />}
               </div>

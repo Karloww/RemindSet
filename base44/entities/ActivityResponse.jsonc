@@ -38,6 +38,13 @@
     },
     "link_url": {
       "type": "string"
+    },
+    "time_taken_minutes": {
+      "type": "number"
+    },
+    "retake_number": {
+      "type": "number",
+      "default": 0
     }
   },
   "required": [
@@ -58,8 +65,6 @@
         }
       ]
     },
-    "delete": {
-      "created_by_id": "{{user.id}}"
-    }
+    "delete": true
   }
 }

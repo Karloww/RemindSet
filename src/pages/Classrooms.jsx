@@ -17,6 +17,7 @@ export default function Classrooms() {
   const [lessons, setLessons] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showJoin, setShowJoin] = useState(false);
+  const [tab, setTab] = useState("enrolled");
   const [joinCode, setJoinCode] = useState("");
   const [joining, setJoining] = useState(false);
 
@@ -165,10 +166,20 @@ export default function Classrooms() {
         </div>
       )}
 
+      {/* Enrolled / Archived tabs */}
+      <div className="flex gap-2">
+        <button onClick={() => setTab("enrolled")} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === "enrolled" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>
+          Enrolled
+        </button>
+        <button onClick={() => setTab("archived")} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === "archived" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"}`}>
+          Archived
+        </button>
+      </div>
+
       {loading ? (
         <div className="space-y-3">{[0, 1, 2].map((i) => <div key={i} className="h-24 rounded-xl bg-muted animate-pulse" />)}</div>
       ) : isTeacher ? (
-        classrooms.length === 0 ? (
+        classrooms.filter((c) => tab === "archived" ? c.archived : !c.archived).length === 0 ? (
           <div className="text-center py-16 bg-card border border-dashed border-border rounded-2xl">
             <School className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
             <p className="text-muted-foreground mb-4">No classes yet.</p>
@@ -176,7 +187,7 @@ export default function Classrooms() {
           </div>
         ) : (
           <div className="space-y-3">
-            {classrooms.map((c) => {
+            {classrooms.filter((c) => tab === "archived" ? c.archived : !c.archived).map((c) => {
               const studentCount = allEnrollments.filter((e) => e.classroom_id === c.id).length;
               const lessonCount = lessons.filter((l) => l.classroom_id === c.id).length;
               return (
@@ -200,7 +211,7 @@ export default function Classrooms() {
             })}
           </div>
         )
-      ) : enrollments.length === 0 ? (
+      ) : enrollments.filter((e) => tab === "archived" ? e.archived : !e.archived).length === 0 ? (
         <div className="text-center py-16 bg-card border border-dashed border-border rounded-2xl">
           <School className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
           <p className="text-muted-foreground mb-4">You haven't joined any classes yet.</p>
@@ -208,7 +219,7 @@ export default function Classrooms() {
         </div>
       ) : (
         <div className="space-y-3">
-          {enrollments.map((e) => {
+          {enrollments.filter((e) => tab === "archived" ? e.archived : !e.archived).map((e) => {
             const classAssignments = assignments.filter((a) => a.classroom_id === e.classroom_id);
             const done = classAssignments.filter((a) => a.status === "completed").length;
             return (

@@ -3,15 +3,21 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
 import { useProfile } from "@/lib/ProfileContext";
 import { base44 } from "@/api/base44Client";
-import { ShoppingBag, Pencil, Coins, CheckCircle2, BookMarked } from "lucide-react";
+import { Pencil, School, Facebook, Instagram, Music2, Twitter, Youtube, Users } from "lucide-react";
 import { COVER_PHOTOS } from "@/lib/themes";
 import ProfileAvatar from "@/components/ProfileAvatar";
 import RoleBadge from "@/components/RoleBadge";
 
+const SOCIAL_ICONS = { facebook: Facebook, instagram: Instagram, tiktok: Music2, twitter: Twitter, youtube: Youtube };
+
 export default function Profile() {
   const { user } = useAuth();
   const { profile } = useProfile();
-  const [stats, setStats] = useState({ total: 0, completed: 0 });
+  const [classrooms, setClassrooms] = useState([]);
+  const [enrollments, setEnrollments] = useState([]);
+  const [friends, setFriends] = useState([]);
+  const [allProfiles, setAllProfiles] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const isTeacher = profile?.account_type === "teacher";
 
@@ -20,33 +26,60 @@ export default function Profile() {
     let active = true;
     (async () => {
       try {
+        const [friendships, profiles] = await Promise.all([
+          base44.entities.Friendship.filter({}, "-created_date", 200),
+          base44.entities.Profile.list("-created_date", 200),
+        ]);
+        if (!active) return;
+        setAllProfiles(profiles || []);
+        const myFriends = (friendships || []).filter(
+          (f) => f.status === "accepted" && (f.requester_id === user.id || f.recipient_id === user.id)
+        );
+        setFriends(myFriends);
+
         if (isTeacher) {
-          const data = await base44.entities.Classroom.filter({ created_by_id: user.id }, "-created_date", 200);
-          if (active) setStats({ total: data?.length || 0, completed: 0 });
+          const cls = await base44.entities.Classroom.filter({ created_by_id: user.id }, "-created_date", 100);
+          if (active) setClassrooms(cls || []);
         } else {
-          const data = await base44.entities.LessonAssignment.filter({ student_id: user.id }, "-created_date", 200);
-          const list = data || [];
-          if (active) setStats({ total: list.length, completed: list.filter((a) => a.status === "completed").length });
+          const enr = await base44.entities.ClassroomEnrollment.filter({ student_id: user.id }, "-created_date", 100);
+          if (active) setEnrollments(enr || []);
         }
       } catch (e) { /* ignore */ }
+      finally { if (active) setLoading(false); }
     })();
     return () => { active = false; };
   }, [user, profile, isTeacher]);
 
   if (!profile) return null;
 
-  const coverPreset = COVER_PHOTOS[profile.selected_cover_photo] || COVER_PHOTOS.default;
+  const selectedCover = profile.selected_cover_photo || "default";
+  const coverPreset = COVER_PHOTOS[selectedCover] || COVER_PHOTOS.default;
   const cover = profile.cover_photo_url
     ? { type: "image", value: profile.cover_photo_url }
+    : (selectedCover.startsWith("http") || selectedCover.startsWith("/"))
+    ? { type: "image", value: selectedCover }
     : coverPreset;
+
+  let socialMedia = {};
+  try { socialMedia = profile.social_media ? JSON.parse(profile.social_media) : {}; } catch (e) { /* ignore */ }
+
+  const friendProfiles = friends.map((f) => {
+    const isRequester = f.requester_id === user.id;
+    const otherId = isRequester ? f.recipient_id : f.requester_id;
+    return allProfiles.find((p) => p.created_by_id === otherId) || {
+      id: otherId,
+      created_by_id: otherId,
+      first_name: (isRequester ? f.recipient_name : f.requester_name)?.split(" ")[0] || "",
+      last_name: (isRequester ? f.recipient_name : f.requester_name)?.split(" ").slice(1).join(" ") || "",
+    };
+  });
+
+  const subjects = isTeacher ? classrooms : enrollments;
 
   return (
     <div className="space-y-5">
       <div className="bg-card border border-border rounded-2xl overflow-hidden">
-        {/* Cover */}
         <div className="h-36 sm:h-44" style={cover.type === "gradient" ? { background: cover.value } : { backgroundImage: `url('${cover.value}')`, backgroundSize: "cover", backgroundPosition: "center" }} />
-
-        {/* Avatar + identity */}
         <div className="px-5 pb-5 -mt-12">
           <div className="flex items-end justify-between">
             <div className="rounded-full ring-4 ring-card">
@@ -63,48 +96,67 @@ export default function Profile() {
             </div>
             <p className="text-sm text-muted-foreground">@{profile.username}</p>
             {profile.bio && <p className="text-sm text-muted-foreground mt-2">{profile.bio}</p>}
+            {/* Social Media - below bio */}
+            {Object.keys(socialMedia).length > 0 && (
+              <div className="mt-3">
+                <div className="flex gap-2 flex-wrap">
+                  {Object.entries(socialMedia).filter(([_, url]) => url).map(([platform, url]) => {
+                    const Icon = SOCIAL_ICONS[platform] || Twitter;
+                    return (
+                      <a key={platform} href={url} target="_blank" rel="noreferrer" className="p-2 bg-muted rounded-lg hover:bg-accent transition-colors">
+                        <Icon className="w-4 h-4" />
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Points */}
-      {!isTeacher && (
-        <div className="rounded-2xl bg-gradient-to-br from-primary to-primary/70 text-primary-foreground p-5 flex items-center justify-between">
-          <div>
-            <p className="text-primary-foreground/80 text-sm font-medium">Total Points</p>
-            <div className="flex items-center gap-2 mt-1">
-              <Coins className="w-6 h-6" />
-              <span className="text-3xl font-bold">{profile.points || 0}</span>
-            </div>
+      {/* Current Subjects */}
+      <div>
+        <h2 className="font-semibold mb-3">Current Subjects</h2>
+        {loading ? (
+          <div className="space-y-2">{[0, 1].map((i) => <div key={i} className="h-14 rounded-xl bg-muted animate-pulse" />)}</div>
+        ) : subjects.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{isTeacher ? "No classes created yet." : "No classes enrolled yet."}</p>
+        ) : (
+          <div className="space-y-2">
+            {subjects.map((s) => (
+              <Link key={s.id} to={isTeacher ? `/classrooms/${s.id}` : `/classrooms/${s.classroom_id}`} className="flex items-center gap-3 bg-card border border-border rounded-xl p-3 hover:border-primary/30 transition-colors">
+                <div className="rounded-lg bg-primary/10 text-primary p-2"><School className="w-4 h-4" /></div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-sm truncate">{s.subject_title}</p>
+                  <p className="text-xs text-muted-foreground truncate">{s.year_and_section}</p>
+                </div>
+              </Link>
+            ))}
           </div>
-          <Link to="/shop" className="bg-white/20 hover:bg-white/30 rounded-xl p-3 transition-colors"><ShoppingBag className="w-6 h-6" /></Link>
-        </div>
-      )}
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="bg-card border border-border rounded-2xl p-5">
-          <div className="rounded-xl bg-primary/10 text-primary p-2 w-fit mb-3"><BookMarked className="w-5 h-5" /></div>
-          <p className="text-3xl font-bold">{stats.total}</p>
-          <p className="text-sm text-muted-foreground">{isTeacher ? "Classrooms" : "Lessons Assigned"}</p>
-        </div>
-        <div className="bg-card border border-border rounded-2xl p-5">
-          <div className="rounded-xl bg-emerald-100 text-emerald-600 p-2 w-fit mb-3"><CheckCircle2 className="w-5 h-5" /></div>
-          <p className="text-3xl font-bold">{isTeacher ? "—" : stats.completed}</p>
-          <p className="text-sm text-muted-foreground">{isTeacher ? "Teacher" : "Completed"}</p>
-        </div>
+        )}
       </div>
 
+      {/* Friends */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-semibold flex items-center gap-2"><Users className="w-4 h-4" /> Friends</h2>
+          <Link to="/users" className="text-sm text-primary hover:underline">View all</Link>
+        </div>
+        {friendProfiles.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No friends yet.</p>
+        ) : (
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+            {friendProfiles.slice(0, 8).map((p) => (
+              <Link key={p.id} to={`/users/${p.id}`} className="flex flex-col items-center gap-1 p-3 bg-card border border-border rounded-xl hover:border-primary/30 transition-colors">
+                <ProfileAvatar profile={p} size="sm" />
+                <p className="text-xs font-medium truncate w-full text-center">{p.first_name}</p>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
 
     </div>
-  );
-}
-
-function QuickLink({ to, icon: Icon, label }) {
-  return (
-    <Link to={to} className="flex flex-col items-center gap-2 bg-card border border-border rounded-2xl p-4 hover:border-primary/40 transition-colors">
-      <div className="rounded-xl bg-primary/10 text-primary p-2.5"><Icon className="w-5 h-5" /></div>
-      <span className="text-sm font-medium">{label}</span>
-    </Link>
   );
 }

@@ -19,6 +19,9 @@ export default function EditProfile() {
   const [uploadingPic, setUploadingPic] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [socialMedia, setSocialMedia] = useState(() => {
+    try { return profile?.social_media ? JSON.parse(profile.social_media) : {}; } catch (e) { return {}; }
+  });
 
   if (!profile) return null;
 
@@ -58,6 +61,7 @@ export default function EditProfile() {
         bio,
         profile_picture_url: profilePic,
         cover_photo_url: coverUrl,
+        social_media: JSON.stringify(socialMedia),
       });
       setProfile(updated);
       toast({ title: "Changes saved!", description: "Your profile has been updated." });
@@ -112,7 +116,7 @@ export default function EditProfile() {
         {/* Cover Photo */}
         <div className="space-y-3">
           <Label className="flex items-center gap-2"><ImageIcon className="w-4 h-4" /> Cover Photo</Label>
-          <div className="rounded-xl overflow-hidden border border-border">
+          <div className="rounded-2xl overflow-hidden border border-border">
             <div className="h-40 sm:h-48 bg-cover bg-center" style={coverUrl ? { backgroundImage: `url('${coverUrl}')` } : { background: coverPreview }} />
           </div>
           <div className="flex gap-2">
@@ -134,6 +138,28 @@ export default function EditProfile() {
           <Label htmlFor="bio">Bio</Label>
           <Textarea id="bio" value={bio} onChange={(e) => setBio(e.target.value)} rows={4}
             placeholder="Tell us a bit about yourself…" />
+        </div>
+
+        {/* Social Media */}
+        <div className="space-y-3">
+          <Label>Social Media</Label>
+          {["facebook", "instagram", "tiktok", "twitter", "youtube"].map((platform) => (
+            <div key={platform} className="flex items-center gap-2">
+              <span className="text-sm font-medium w-20 capitalize">{platform}</span>
+              <input
+                type="url"
+                value={socialMedia[platform] || ""}
+                onChange={(e) => setSocialMedia((prev) => ({ ...prev, [platform]: e.target.value }))}
+                placeholder={`Your ${platform} URL`}
+                className="flex-1 h-9 px-3 rounded-lg bg-muted/50 border border-border text-[16px] sm:text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+              {socialMedia[platform] && (
+                <button type="button" onClick={() => setSocialMedia((prev) => { const next = { ...prev }; delete next[platform]; return next; })} className="p-2 text-destructive hover:bg-accent rounded-lg">
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          ))}
         </div>
 
         <Button type="submit" className="w-full h-12" disabled={saving}>

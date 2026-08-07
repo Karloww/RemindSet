@@ -4,11 +4,16 @@ import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { useProfile } from "@/lib/ProfileContext";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Copy, Check, Plus, Users, BookOpen, CheckCircle2, Clock, ChevronDown, Loader2, Upload, Trash2, Pencil, UserPlus, FileText, Coins, CalendarClock, User, ClipboardList, LogOut, AlertTriangle, ExternalLink } from "lucide-react";
+import { ArrowLeft, Copy, Check, Plus, Users, BookOpen, CheckCircle2, Clock, ChevronDown, Loader2, Upload, Trash2, Pencil, UserPlus, FileText, Coins, CalendarClock, User, ClipboardList, LogOut, AlertTriangle, Lock, MessageCircle } from "lucide-react";
 import { POINTS_PER_LESSON } from "@/lib/themes";
 import { toast } from "@/components/ui/use-toast";
+import ProfileAvatar from "@/components/ProfileAvatar";
+import ActivityTrackerCard from "@/components/activity/ActivityTrackerCard";
+import AnnouncementCard from "@/components/announcements/AnnouncementCard";
+import AnnouncementForm from "@/components/announcements/AnnouncementForm";
+import { Megaphone } from "lucide-react";
 
-const TABS = ["Lessons", "Activity", "Students"];
+const TABS = ["Lessons", "Activity", "Students", "Announcement"];
 
 export default function ClassroomDetail() {
   const { id } = useParams();
@@ -30,8 +35,27 @@ export default function ClassroomDetail() {
   const [editSaving, setEditSaving] = useState(false);
   const [unenrolling, setUnenrolling] = useState(false);
   const [removingStudent, setRemovingStudent] = useState(null);
+  const [profiles, setProfiles] = useState({});
+  const [responses, setResponses] = useState([]);
+  const [lessonVisMap, setLessonVisMap] = useState({});
+  const [classroomAnnouncements, setClassroomAnnouncements] = useState([]);
+  const [showAnnForm, setShowAnnForm] = useState(false);
+  const [loadingAnns, setLoadingAnns] = useState(false);
 
   const isTeacher = profile?.account_type === "teacher";
+
+  const loadClassroomAnnouncements = async () => {
+    setLoadingAnns(true);
+    try {
+      const data = await base44.entities.Announcement.filter({ classroom_id: id }, "-created_date", 200);
+      setClassroomAnnouncements(data || []);
+    } catch (e) { /* ignore */ }
+    setLoadingAnns(false);
+  };
+
+  useEffect(() => {
+    if (tab === "Announcement") loadClassroomAnnouncements();
+  }, [tab, id]);
 
   const loadData = async () => {
     if (!id || !user) return;
@@ -45,16 +69,29 @@ export default function ClassroomDetail() {
           base44.entities.Activity.filter({ classroom_id: id }, "-created_date", 100),
         ]);
         setClassroom(c); setEnrollments(enr || []); setLessons(lns || []); setAssignments(asg || []); setActivities(acts || []);
+        const teacherResps = await base44.entities.ActivityResponse.filter({ classroom_id: id }, "-created_date", 500);
+        setResponses(teacherResps || []);
+        setLessonVisMap(Object.fromEntries((lns || []).map((l) => [l.id, l.visibility || "open"])));
+        const tIds = [c.created_by_id, ...(enr || []).map((e) => e.student_id || e.created_by_id)].filter(Boolean);
+        const tProfs = await base44.entities.Profile.filter({ created_by_id: { $in: tIds } }, "-created_date", 200);
+        setProfiles(Object.fromEntries((tProfs || []).map((p) => [p.created_by_id, p])));
       } else {
-        const [c, asg, enr, acts] = await Promise.all([
+        const [c, asg, enr, acts, lns] = await Promise.all([
           base44.entities.Classroom.get(id),
           base44.entities.LessonAssignment.filter({ classroom_id: id, student_id: user.id }, "-created_date", 200),
           base44.entities.ClassroomEnrollment.filter({ classroom_id: id }, "created_date", 200),
           base44.entities.Activity.filter({ classroom_id: id }, "-created_date", 100),
+          base44.entities.LessonPlan.filter({ classroom_id: id }, "created_date", 200),
         ]);
         const now = new Date().toISOString();
         setClassroom(c); setEnrollments(enr || []); setAssignments((asg || []).filter((a) => !a.scheduled_date || a.scheduled_date <= now));
         setActivities((acts || []).filter((a) => a.status === "open" && (!a.deadline || a.deadline >= now)));
+        const studentResps = await base44.entities.ActivityResponse.filter({ classroom_id: id, student_id: user.id }, "-created_date", 200);
+        setResponses(studentResps || []);
+        setLessonVisMap(Object.fromEntries((lns || []).map((l) => [l.id, l.visibility || "open"])));
+        const sIds = [c.created_by_id, ...(enr || []).map((e) => e.student_id || e.created_by_id)].filter(Boolean);
+        const sProfs = await base44.entities.Profile.filter({ created_by_id: { $in: sIds } }, "-created_date", 200);
+        setProfiles(Object.fromEntries((sProfs || []).map((p) => [p.created_by_id, p])));
       }
     } finally {
       setLoading(false);
@@ -116,6 +153,21 @@ export default function ClassroomDetail() {
     } finally { setUnenrolling(false); }
   };
 
+  const handleArchive = async () => {
+    try {
+      if (isTeacher) {
+        await base44.entities.Classroom.update(id, { archived: !classroom.archived });
+      } else {
+        const enr = enrollments.find((e) => (e.student_id || e.created_by_id) === user.id);
+        if (enr) await base44.entities.ClassroomEnrollment.update(enr.id, { archived: !enr.archived });
+      }
+      toast({ title: "Class archive status updated" });
+      loadData();
+    } catch (e) {
+      toast({ title: "Failed", variant: "destructive" });
+    }
+  };
+
   const handleRemoveStudent = async (enrollment) => {
     const sid = enrollment.student_id || enrollment.created_by_id;
     if (!window.confirm(`Remove ${enrollment.student_name} from this class?`)) return;
@@ -152,6 +204,9 @@ export default function ClassroomDetail() {
                 <button onClick={handleDeleteClassroom} className="p-2 rounded-lg hover:bg-destructive/10 text-destructive transition-colors" title="Delete classroom">
                   <Trash2 className="w-4 h-4" />
                 </button>
+                <button onClick={handleArchive} className="p-2 rounded-lg hover:bg-accent transition-colors" title={classroom.archived ? "Unarchive" : "Archive"}>
+                  {classroom.archived ? <Check className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
+                </button>
               </div>
             )}
           </div>
@@ -166,23 +221,79 @@ export default function ClassroomDetail() {
               <button onClick={() => navigate(`/users/${classroom.created_by_id}?classroomId=${id}`)} className="text-sm text-muted-foreground hover:text-primary transition-colors">
                 Teacher: {classroom.teacher_name}
               </button>
-              <button onClick={handleUnenroll} disabled={unenrolling} className="inline-flex items-center gap-1.5 text-sm text-destructive hover:bg-destructive/10 px-3 py-1.5 rounded-lg transition-colors">
-                {unenrolling ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogOut className="w-4 h-4" />} Unenroll
-              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={handleArchive} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:bg-accent px-3 py-1.5 rounded-lg transition-colors">
+                  {enrollments.find((e) => (e.student_id || e.created_by_id) === user.id)?.archived ? <Check className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
+                  {enrollments.find((e) => (e.student_id || e.created_by_id) === user.id)?.archived ? "Unarchive" : "Archive"}
+                </button>
+                <button onClick={handleUnenroll} disabled={unenrolling} className="inline-flex items-center gap-1.5 text-sm text-destructive hover:bg-destructive/10 px-3 py-1.5 rounded-lg transition-colors">
+                  {unenrolling ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogOut className="w-4 h-4" />} Unenroll
+                </button>
+              </div>
             </div>
           )}
         </div>
-        <div className="grid grid-cols-2 divide-x divide-border">
-          <div className="p-4 text-center">
-            <p className="text-2xl font-bold">{isTeacher ? enrollments.length : assignments.length}</p>
-            <p className="text-xs text-muted-foreground">{isTeacher ? "Students" : "Lessons"}</p>
+        {isTeacher ? (
+          <div className="grid grid-cols-3 divide-x divide-border">
+            <div className="p-4 text-center">
+              <p className="text-2xl font-bold">{enrollments.length}</p>
+              <p className="text-xs text-muted-foreground">Students</p>
+            </div>
+            <div className="p-4 text-center">
+              <p className="text-2xl font-bold">{lessons.length}</p>
+              <p className="text-xs text-muted-foreground">Lessons</p>
+            </div>
+            <div className="p-4 text-center">
+              <p className="text-2xl font-bold">{activities.length}</p>
+              <p className="text-xs text-muted-foreground">Activities</p>
+            </div>
           </div>
-          <div className="p-4 text-center">
-            <p className="text-2xl font-bold">{isTeacher ? lessons.length : assignments.filter((a) => a.status === "completed").length}</p>
-            <p className="text-xs text-muted-foreground">{isTeacher ? "Lessons" : "Completed"}</p>
+        ) : null}
+      </div>
+
+      {/* Student Progress & Grade */}
+      {!isTeacher && (assignments.length > 0 || activities.length > 0) && (
+        <div className="bg-card border border-border rounded-2xl p-5">
+          <h3 className="font-semibold mb-3">Your Progress</h3>
+          <div className="space-y-4">
+            <div>
+              <div className="flex items-center justify-between text-sm mb-1.5">
+                <span className="text-muted-foreground">Activities Completed</span>
+                <span className="font-medium">{responses.length} / {activities.length}</span>
+              </div>
+              <div className="h-2 bg-muted rounded-full overflow-hidden">
+                <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${activities.length > 0 ? (responses.length / activities.length) * 100 : 0}%` }} />
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center justify-between text-sm mb-1.5">
+                <span className="text-muted-foreground">Lessons Completed</span>
+                <span className="font-medium">{assignments.filter((a) => a.status === "completed").length} / {assignments.length}</span>
+              </div>
+              <div className="h-2 bg-muted rounded-full overflow-hidden">
+                <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${assignments.length > 0 ? (assignments.filter((a) => a.status === "completed").length / assignments.length) * 100 : 0}%` }} />
+              </div>
+            </div>
+            {responses.length > 0 && (() => {
+              const totalScore = responses.reduce((sum, r) => sum + (r.total_score || 0), 0);
+              const maxScore = responses.reduce((sum, r) => sum + (r.max_score || 0), 0);
+              const pct = maxScore > 0 ? (totalScore / maxScore) * 100 : 0;
+              const grade = pct >= 90 ? "A" : pct >= 80 ? "B" : pct >= 70 ? "C" : pct >= 60 ? "D" : "F";
+              return (
+                <div>
+                  <div className="flex items-center justify-between text-sm mb-1.5">
+                    <span className="text-muted-foreground">Overall Grade</span>
+                    <span className="font-bold text-lg">{grade} ({pct.toFixed(0)}%)</span>
+                  </div>
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
-      </div>
+      )}
 
       {/* Edit Modal */}
       {editOpen && (
@@ -240,23 +351,36 @@ export default function ClassroomDetail() {
             <div className="space-y-3">
               {assignments.map((a) => {
                 const done = a.status === "completed";
+                const closed = lessonVisMap[a.lesson_id] === "closed";
+                const missed = !done && !closed && a.scheduled_date && new Date(a.scheduled_date) < new Date();
                 return (
-                  <button key={a.id} onClick={() => navigate(`/lessons/${a.id}`)} className="w-full text-left bg-card border border-border rounded-xl p-4 hover:border-primary/40 transition-colors">
+                  <div key={a.id} className={`bg-card border border-border rounded-xl p-4 transition-colors ${closed ? "opacity-70" : "hover:border-primary/40"}`}>
                     <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">{a.subject}</span>
+                      <button onClick={() => !closed && navigate(`/lessons/${a.id}`)} disabled={closed} className="min-w-0 flex-1 text-left">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">{a.subject}</span>
+                          {closed && <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full"><Lock className="w-3 h-3" /> Closed</span>}
+                          {missed && <span className="inline-flex items-center gap-1 text-xs font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded-full"><AlertTriangle className="w-3 h-3" /> Missed</span>}
+                        </div>
                         <p className="font-semibold mt-1.5 truncate">{a.lesson_title}</p>
                         <p className="text-sm text-muted-foreground truncate">{a.file_name || "No file attached"}</p>
-                      </div>
+                        {missed && a.scheduled_date && <p className="text-xs text-red-500 mt-1">Deadline: {new Date(a.scheduled_date).toLocaleString()}</p>}
+                      </button>
                       <div className="shrink-0">
                         {done ? (
                           <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full"><CheckCircle2 className="w-3 h-3" /> Done</span>
+                        ) : closed ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 bg-amber-50 px-2 py-1 rounded-full"><Lock className="w-3 h-3" /> Locked</span>
+                        ) : missed ? (
+                          <button onClick={() => navigate(`/messages?userId=${classroom.created_by_id}`)} className="inline-flex items-center gap-1 text-xs font-medium text-primary bg-primary/10 px-2 py-1 rounded-full hover:bg-primary/20">
+                            <MessageCircle className="w-3 h-3" /> Message Teacher
+                          </button>
                         ) : (
                           <span className="inline-flex items-center gap-1 text-xs font-medium text-primary bg-primary/10 px-2 py-1 rounded-full">+{a.points_reward ?? POINTS_PER_LESSON} pts</span>
                         )}
                       </div>
                     </div>
-                  </button>
+                  </div>
                 );
               })}
             </div>
@@ -280,35 +404,7 @@ export default function ClassroomDetail() {
           ) : (
             <div className="space-y-3">
               {activities.map((a) => (
-                <div key={a.id} className="bg-card border border-border rounded-xl p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${a.status === "open" ? "bg-emerald-50 text-emerald-600" : "bg-muted text-muted-foreground"}`}>{a.status}</span>
-                      <p className="font-semibold mt-1.5 truncate">{a.title}</p>
-                      {a.description && <p className="text-sm text-muted-foreground truncate">{a.description}</p>}
-                      {a.deadline && <p className="text-xs text-amber-600 mt-1">Due: {new Date(a.deadline).toLocaleString()}</p>}
-                    </div>
-                    <div className="flex gap-1 shrink-0">
-                      {isTeacher ? (
-                        <>
-                          <button onClick={() => navigate(`/classrooms/${id}/activities/${a.id}`)} className="p-2 rounded-lg hover:bg-accent"><Pencil className="w-4 h-4" /></button>
-                          <button onClick={async () => {
-                            if (!window.confirm(`Delete "${a.title}"?`)) return;
-                            try {
-                              await base44.entities.Activity.delete(a.id);
-                              toast({ title: "Activity deleted." });
-                              loadData();
-                            } catch (err) { toast({ title: "Delete failed", description: err.message, variant: "destructive" }); }
-                          }} className="p-2 rounded-lg hover:bg-destructive/10 text-destructive"><Trash2 className="w-4 h-4" /></button>
-                        </>
-                      ) : (
-                        <button onClick={() => navigate(`/classrooms/${id}/activities/${a.id}/take`)} className="inline-flex items-center gap-1 text-sm bg-primary text-primary-foreground rounded-lg px-3 py-1.5">
-                          Start <ExternalLink className="w-3.5 h-3.5 ml-1" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                <ActivityTrackerCard key={a.id} activity={a} classroomId={id} enrollments={enrollments} responses={responses} onDeleted={loadData} isTeacher={isTeacher} />
               ))}
             </div>
           )}
@@ -329,14 +425,24 @@ export default function ClassroomDetail() {
                 {enrollments.map((e) => {
                   const studentAssignments = assignments.filter((a) => a.student_id === e.student_id);
                   const doneCount = studentAssignments.filter((a) => a.status === "completed").length;
+                  const actDoneCount = responses.filter((r) => r.student_id === (e.student_id || e.created_by_id)).length;
                   const sid = e.student_id || e.created_by_id;
                   const removing = removingStudent === sid;
                   return (
                     <div key={e.id} className="flex items-center justify-between gap-3 p-4">
                       <button onClick={() => navigate(`/users/${sid}?classroomId=${id}`)} className="flex items-center gap-3 flex-1 min-w-0 text-left hover:opacity-80">
+                        <ProfileAvatar profile={profiles[sid] || { first_name: e.student_name, account_type: "student" }} size="md" />
                         <div className="min-w-0">
                           <p className="font-medium truncate">{e.student_name}</p>
-                          <p className="text-xs text-muted-foreground">{doneCount}/{studentAssignments.length} lessons completed</p>
+                          <p className="text-xs text-muted-foreground">{doneCount}/{studentAssignments.length} lessons • {actDoneCount}/{activities.length} activities</p>
+                          {(() => {
+                            const studentResps = responses.filter((r) => r.student_id === sid);
+                            const ts = studentResps.reduce((sum, r) => sum + (r.total_score || 0), 0);
+                            const ms = studentResps.reduce((sum, r) => sum + (r.max_score || 0), 0);
+                            const pct = ms > 0 ? (ts / ms) * 100 : 0;
+                            const grade = pct >= 90 ? "A" : pct >= 80 ? "B" : pct >= 70 ? "C" : pct >= 60 ? "D" : "F";
+                            return ms > 0 ? <p className="text-xs font-medium text-primary">Grade: {grade} ({pct.toFixed(0)}%)</p> : null;
+                          })()}
                         </div>
                       </button>
                       <button onClick={() => handleRemoveStudent(e)} disabled={removing} className="p-1.5 rounded-lg hover:bg-destructive/10 text-destructive shrink-0" title="Remove student">
@@ -350,9 +456,7 @@ export default function ClassroomDetail() {
           ) : (
             <div className="bg-card border border-border rounded-2xl divide-y divide-border overflow-hidden">
               <button onClick={() => navigate(`/users/${classroom.created_by_id}?classroomId=${id}`)} className="w-full flex items-center gap-3 p-4 hover:bg-accent transition-colors text-left">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                  <Users className="w-5 h-5 text-primary" />
-                </div>
+                <ProfileAvatar profile={profiles[classroom.created_by_id] || { first_name: classroom.teacher_name, account_type: "teacher" }} size="md" />
                 <div className="min-w-0">
                   <p className="font-medium truncate">{classroom.teacher_name}</p>
                   <p className="text-xs text-muted-foreground">Teacher</p>
@@ -362,9 +466,7 @@ export default function ClassroomDetail() {
                 const sid = e.student_id || e.created_by_id;
                 return (
                   <button key={e.id || sid} onClick={() => navigate(`/users/${sid}?classroomId=${id}`)} className="w-full flex items-center gap-3 p-4 hover:bg-accent transition-colors text-left">
-                    <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center shrink-0">
-                      <User className="w-5 h-5 text-muted-foreground" />
-                    </div>
+                    <ProfileAvatar profile={profiles[sid] || { first_name: e.student_name, account_type: "student" }} size="md" />
                     <div className="min-w-0">
                       <p className="font-medium truncate">{e.student_name}</p>
                       <p className="text-xs text-muted-foreground">Classmate</p>
@@ -372,6 +474,47 @@ export default function ClassroomDetail() {
                   </button>
                 );
               })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Announcement Tab */}
+      {tab === "Announcement" && (
+        <div className="space-y-4">
+          {isTeacher && !showAnnForm && (
+            <Button onClick={() => setShowAnnForm(true)} className="w-full h-12">
+              <Megaphone className="w-4 h-4 mr-2" /> Post Announcement
+            </Button>
+          )}
+          {isTeacher && showAnnForm && (
+            <AnnouncementForm
+              existing={null}
+              fixedClassroomId={id}
+              fixedClassroomName={classroom.subject_title}
+              onSaved={() => { setShowAnnForm(false); loadClassroomAnnouncements(); }}
+              onCancel={() => setShowAnnForm(false)}
+            />
+          )}
+          {loadingAnns ? (
+            <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+          ) : classroomAnnouncements.length === 0 ? (
+            <div className="text-center py-12 bg-card border border-dashed border-border rounded-2xl">
+              <Megaphone className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+              <p className="text-muted-foreground text-sm">No announcements for this class yet.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {classroomAnnouncements
+                .filter((a) => a.visibility === "open" || a.created_by_id === user?.id)
+                .map((a) => (
+                  <AnnouncementCard
+                    key={a.id}
+                    announcement={a}
+                    canEdit={a.created_by_id === user?.id || isTeacher}
+                    onUpdated={loadClassroomAnnouncements}
+                  />
+                ))}
             </div>
           )}
         </div>
@@ -398,6 +541,16 @@ function LessonTrackerCard({ lesson, enrollments, assignments, classroomId, onDe
     }
   };
 
+  const toggleVisibility = async (visibility) => {
+    try {
+      await base44.entities.LessonPlan.update(lesson.id, { visibility });
+      toast({ title: `Lesson ${visibility === "closed" ? "closed" : "opened"}.` });
+      onDeleted();
+    } catch (err) {
+      toast({ title: "Update failed", description: err.message, variant: "destructive" });
+    }
+  };
+
   return (
     <div className="bg-card border border-border rounded-xl overflow-hidden">
       <button onClick={onToggle} className="w-full flex items-center justify-between gap-3 p-4 hover:bg-accent transition-colors">
@@ -410,6 +563,7 @@ function LessonTrackerCard({ lesson, enrollments, assignments, classroomId, onDe
             </div>
             <span className="text-xs text-muted-foreground">{completed}/{total} done</span>
           </div>
+          {lesson.visibility === "closed" && <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full mt-1"><Lock className="w-3 h-3" /> Closed</span>}
         </div>
         <ChevronDown className={`w-5 h-5 text-muted-foreground transition-transform shrink-0 ${isExpanded ? "rotate-180" : ""}`} />
       </button>
@@ -421,6 +575,10 @@ function LessonTrackerCard({ lesson, enrollments, assignments, classroomId, onDe
               <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 bg-amber-50 px-2 py-1 rounded-full"><Coins className="w-3 h-3" /> {lesson.points_reward || 10} pts</span>
               {lesson.scheduled_date && <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded-full"><CalendarClock className="w-3 h-3" /> {new Date(lesson.scheduled_date).toLocaleString()}</span>}
               {lesson.file_name && <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground bg-muted px-2 py-1 rounded-full truncate max-w-[180px]"><FileText className="w-3 h-3 shrink-0" /> {lesson.file_name}</span>}
+              <div className="inline-flex items-center rounded-full border border-border overflow-hidden">
+                <button type="button" onClick={(e) => { e.stopPropagation(); toggleVisibility("open"); }} className={`px-2.5 py-1 text-xs font-medium ${lesson.visibility !== "closed" ? "bg-emerald-500 text-white" : "text-muted-foreground hover:bg-accent"}`}>Open</button>
+                <button type="button" onClick={(e) => { e.stopPropagation(); toggleVisibility("closed"); }} className={`px-2.5 py-1 text-xs font-medium ${lesson.visibility === "closed" ? "bg-amber-500 text-white" : "text-muted-foreground hover:bg-accent"}`}>Closed</button>
+              </div>
             </div>
           </div>
           <div className="px-4 pb-3 flex flex-wrap gap-2">

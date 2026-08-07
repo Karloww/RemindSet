@@ -1,4 +1,5 @@
 import React from "react";
+import { Presentation } from "lucide-react";
 import { PROFILE_ICONS, isUrlValue } from "@/lib/themes";
 
 // Renders the user's selected profile icon: emoji, uploaded image, or initials fallback.
@@ -37,11 +38,14 @@ export default function ProfileAvatar({ profile, user, size = "md", className = 
   }
 
   const resolvedIcon = icon || PROFILE_ICONS.default;
+  const isTeacherDefault = profile?.account_type === "teacher" && resolvedIcon.type === "initials";
 
   return (
     <div className={`${sizes[size]} ${className} rounded-full bg-primary/15 text-primary flex items-center justify-center font-semibold shrink-0`}>
       {resolvedIcon.type === "emoji" ? (
         <span>{resolvedIcon.value}</span>
+      ) : isTeacherDefault ? (
+        <Presentation className="w-1/2 h-1/2" />
       ) : (
         <span>{initials}</span>
       )}

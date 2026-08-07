@@ -1,0 +1,55 @@
+{
+  "name": "Message",
+  "type": "object",
+  "properties": {
+    "conversation_id": {
+      "type": "string"
+    },
+    "sender_id": {
+      "type": "string"
+    },
+    "sender_name": {
+      "type": "string"
+    },
+    "content": {
+      "type": "string"
+    },
+    "read": {
+      "type": "boolean",
+      "default": false
+    },
+    "file_url": {
+      "type": "string"
+    },
+    "edited": {
+      "type": "boolean",
+      "default": false
+    },
+    "edited_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "deleted_for_ids": {
+      "type": "string",
+      "default": "[]"
+    },
+    "unsent": {
+      "type": "boolean",
+      "default": false
+    },
+    "unsent_by_name": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "conversation_id",
+    "sender_id",
+    "content"
+  ],
+  "rls": {
+    "create": true,
+    "read": true,
+    "update": true,
+    "delete": true
+  }
+}

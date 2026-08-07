@@ -4,7 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { UserPlus, User, Loader2, GraduationCap, Presentation } from "lucide-react";
+import { UserPlus, User, Loader2, GraduationCap, Presentation, Lock } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
 import { useAuth } from "@/lib/AuthContext";
 import { toast } from "@/components/ui/use-toast";
@@ -18,6 +18,7 @@ export default function Onboarding() {
   const [lastName, setLastName] = useState("");
   const [username, setUsername] = useState("");
   const [gender, setGender] = useState("");
+  const [teacherCode, setTeacherCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -32,6 +33,19 @@ export default function Onboarding() {
       setError("Please fill in all fields.");
       return;
     }
+    if (accountType === "teacher") {
+      try {
+        const settings = await base44.entities.AppSettings.list("created_date", 1);
+        const secret = settings[0]?.teacher_secret_code || "";
+        if (secret && teacherCode.trim() !== secret) {
+          setError("Incorrect teacher's secret code. Please contact the admin.");
+          return;
+        }
+      } catch {
+        setError("Could not verify teacher code. Please try again.");
+        return;
+      }
+    }
     setLoading(true);
     try {
       await base44.entities.Profile.create({
@@ -41,7 +55,7 @@ export default function Onboarding() {
         gender: gender || "other",
         account_type: accountType,
         points: 0,
-        selected_color_theme: "indigo",
+        selected_color_theme: "ocean",
         selected_background: "none",
         selected_cover_photo: "default",
         selected_profile_icon: "default",
@@ -101,8 +115,15 @@ export default function Onboarding() {
             </div>
           </div>
         </div>
-        <Button type="submit" className="w-full h-12 font-medium" disabled={loading}>
-          {loading ? (<><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving...</>) : ("Get Started")}
+        {accountType === "teacher" && (
+          <div className="space-y-2">
+            <Label htmlFor="teacherCode" className="flex items-center gap-1.5"><Lock className="w-4 h-4" /> Teacher's secret code</Label>
+            <Input id="teacherCode" value={teacherCode} onChange={(e) => setTeacherCode(e.target.value)} className="h-11" placeholder="Enter the code from the admin" />
+            <p className="text-xs text-muted-foreground">Required to register as a teacher. Ask the admin for the code.</p>
+          </div>
+        )}
+        <Button type="submit" className="w-full h-12" disabled={loading}>
+          {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving...</> : "Get Started"}
         </Button>
       </form>
     </AuthLayout>

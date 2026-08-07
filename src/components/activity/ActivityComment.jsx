@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { useProfile } from "@/lib/ProfileContext";
-import { MessageCircle, Send, Loader2, Trash2 } from "lucide-react";
+import { MessageCircle, Send, Loader2, Trash2, Flag } from "lucide-react";
+import ReportDialog from "@/components/ReportDialog";
 import { toast } from "@/components/ui/use-toast";
 
 export default function ActivityComment({ activityId }) {
@@ -69,8 +70,18 @@ export default function ActivityComment({ activityId }) {
                 </div>
                 <p className="text-sm mt-0.5">{c.message}</p>
               </div>
-              {c.created_by_id === user?.id && (
+              {c.created_by_id === user?.id ? (
                 <button onClick={() => handleDelete(c.id)} className="p-1 text-muted-foreground hover:text-destructive shrink-0"><Trash2 className="w-3.5 h-3.5" /></button>
+              ) : (
+                <ReportDialog
+                  targetType="activity_comment"
+                  targetId={c.id}
+                  reportedUserId={c.user_id}
+                  reportedUserName={c.user_name}
+                  contentSnapshot={c.message}
+                >
+                  <button className="p-1 text-muted-foreground hover:text-destructive shrink-0" title="Report"><Flag className="w-3.5 h-3.5" /></button>
+                </ReportDialog>
               )}
             </div>
           ))}

@@ -71,7 +71,7 @@ function Section({ icon: Icon, title, color, children }) {
 
 function Step({ n, title, desc }) {
   return (
-    <div className="flex gap-3">
+    <div className="flex items-start gap-3">
       <div className="w-7 h-7 rounded-full bg-primary/10 text-primary text-sm font-bold flex items-center justify-center shrink-0">{n}</div>
       <div>
         <p className="font-medium text-sm">{title}</p>

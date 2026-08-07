@@ -4,14 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ShoppingBag, Loader2, Plus, Trash2, Pencil, Coins, Upload, X } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 
-const ITEM_TYPES = ["color_theme", "background", "cover_photo", "profile_icon"];
+const ITEM_TYPES = ["color_theme", "cover_photo", "profile_icon"];
 const RARITIES = ["common", "rare", "epic", "legendary"];
 
-const emptyForm = { name: "", type: "color_theme", rarity: "common", price: 10, value: "", description: "", preview_url: "" };
+const emptyForm = { name: "", type: "color_theme", rarity: "common", price: 10, value: "", main_color: "#5B21B6", bg_color: "#EDE9FE", description: "", preview_url: "" };
 
 export default function ManageShop() {
   const [items, setItems] = useState([]);
@@ -45,32 +45,46 @@ export default function ManageShop() {
 
   const openEdit = (item) => {
     setEditing(item);
-    setForm({ name: item.name || "", type: item.type || "color_theme", rarity: item.rarity || "common", price: item.price || 0, value: item.value || "", description: item.description || "", preview_url: item.preview_url || "" });
+    setForm({
+      name: item.name || "",
+      type: item.type || "color_theme",
+      rarity: item.rarity || "common",
+      price: item.price || 0,
+      value: item.value || "",
+      main_color: item.main_color || "#5B21B6",
+      bg_color: item.bg_color || "#EDE9FE",
+      description: item.description || "",
+      preview_url: item.preview_url || "",
+    });
     setFile(null);
     setDialogOpen(true);
   };
 
-  const handleFile = (e) => {
-    const f = e.target.files?.[0];
-    if (f) setFile(f);
-  };
-
   const handleSave = async (e) => {
     e.preventDefault();
-    if (!form.name || !form.value) {
-      toast({ title: "Name and value are required", variant: "destructive" });
-      return;
-    }
     setSaving(true);
     try {
       const data = { ...form, price: Number(form.price) || 0 };
-      if (file && (form.type === "cover_photo" || form.type === "profile_icon")) {
+
+      if (form.type === "color_theme") {
+        // Value encodes both colors as JSON
+        data.value = JSON.stringify({ main: form.main_color, bg: form.bg_color });
+        // Generate a simple preview swatch
+        data.preview_url = "";
+      } else if ((form.type === "cover_photo" || form.type === "profile_icon") && file) {
         setUploading(true);
         const res = await base44.integrations.Core.UploadFile({ file });
         data.value = res.file_url;
         data.preview_url = res.file_url;
         setUploading(false);
       }
+
+      if (!data.name) {
+        toast({ title: "Name is required", variant: "destructive" });
+        setSaving(false);
+        return;
+      }
+
       if (editing) {
         await base44.entities.ShopItem.update(editing.id, data);
         toast({ title: "Item updated!" });
@@ -105,6 +119,9 @@ export default function ManageShop() {
     legendary: "bg-amber-50 text-amber-600",
   }[r] || "bg-muted text-muted-foreground");
 
+  const isFileType = form.type === "cover_photo" || form.type === "profile_icon";
+  const isColorType = form.type === "color_theme";
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
@@ -124,36 +141,48 @@ export default function ManageShop() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {items.map((item) => (
-            <div key={item.id} className="bg-card border border-border rounded-2xl p-4 flex items-start gap-3">
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                {item.preview_url ? (
-                  <img src={item.preview_url} alt={item.name} className="w-full h-full rounded-xl object-cover" />
-                ) : (
-                  <ShoppingBag className="w-5 h-5 text-primary" />
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium truncate">{item.name}</p>
-                <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                  <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{item.type}</span>
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${rarityColor(item.rarity)}`}>{item.rarity}</span>
-                  <span className="text-xs font-medium text-amber-600 inline-flex items-center gap-0.5"><Coins className="w-3 h-3" /> {item.price}</span>
+          {items.map((item) => {
+            // Preview for color themes
+            let colorPreview = null;
+            if (item.type === "color_theme" && item.value) {
+              try {
+                const c = JSON.parse(item.value);
+                colorPreview = (
+                  <div className="w-full h-full rounded-xl" style={{ background: c.bg || c.main || "#ccc" }} />
+                );
+              } catch { colorPreview = null; }
+            }
+            return (
+              <div key={item.id} className="bg-card border border-border rounded-2xl p-4 flex items-start gap-3">
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 overflow-hidden">
+                  {item.preview_url ? (
+                    <img src={item.preview_url} alt={item.name} className="w-full h-full object-cover" />
+                  ) : colorPreview || (
+                    <ShoppingBag className="w-5 h-5 text-primary" />
+                  )}
                 </div>
-                {item.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{item.description}</p>}
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium truncate">{item.name}</p>
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                    <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{item.type}</span>
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${rarityColor(item.rarity)}`}>{item.rarity}</span>
+                    <span className="text-xs font-medium text-amber-600 inline-flex items-center gap-0.5"><Coins className="w-3 h-3" /> {item.price}</span>
+                  </div>
+                  {item.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{item.description}</p>}
+                </div>
+                <div className="flex flex-col gap-1 shrink-0">
+                  <button onClick={() => openEdit(item)} className="p-1.5 rounded-lg hover:bg-accent"><Pencil className="w-4 h-4" /></button>
+                  <button onClick={() => handleDelete(item.id)} className="p-1.5 rounded-lg hover:bg-destructive/10 text-destructive"><Trash2 className="w-4 h-4" /></button>
+                </div>
               </div>
-              <div className="flex flex-col gap-1 shrink-0">
-                <button onClick={() => openEdit(item)} className="p-1.5 rounded-lg hover:bg-accent"><Pencil className="w-4 h-4" /></button>
-                <button onClick={() => handleDelete(item.id)} className="p-1.5 rounded-lg hover:bg-destructive/10 text-destructive"><Trash2 className="w-4 h-4" /></button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? "Edit Shop Item" : "Create Shop Item"}</DialogTitle>
           </DialogHeader>
@@ -167,7 +196,7 @@ export default function ManageShop() {
                 <Label htmlFor="type">Type</Label>
                 <select id="type" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}
                   className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
-                  {ITEM_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                  {ITEM_TYPES.map((t) => <option key={t} value={t}>{t.replace(/_/g, " ")}</option>)}
                 </select>
               </div>
               <div className="space-y-2">
@@ -178,23 +207,76 @@ export default function ManageShop() {
                 </select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="price">Price (pts)</Label>
-                <Input id="price" type="number" min="0" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="value">Value *</Label>
-                <Input id="value" value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })} placeholder="e.g. emerald, sunset" required />
-              </div>
-            </div>
             <div className="space-y-2">
-              <Label htmlFor="preview_url">Preview URL</Label>
-              <Input id="preview_url" value={form.preview_url} onChange={(e) => setForm({ ...form, preview_url: e.target.value })} placeholder="https://…" />
+              <Label htmlFor="price">Price (coins)</Label>
+              <Input id="price" type="number" min="0" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
             </div>
+
+            {/* Color theme fields */}
+            {isColorType && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>Main Color</Label>
+                    <div className="flex items-center gap-2">
+                      <input type="color" value={form.main_color} onChange={(e) => setForm({ ...form, main_color: e.target.value })}
+                        className="w-10 h-9 rounded border border-input cursor-pointer" />
+                      <Input value={form.main_color} onChange={(e) => setForm({ ...form, main_color: e.target.value })}
+                        placeholder="#5B21B6" className="flex-1 font-mono text-sm" />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Background Color</Label>
+                    <div className="flex items-center gap-2">
+                      <input type="color" value={form.bg_color} onChange={(e) => setForm({ ...form, bg_color: e.target.value })}
+                        className="w-10 h-9 rounded border border-input cursor-pointer" />
+                      <Input value={form.bg_color} onChange={(e) => setForm({ ...form, bg_color: e.target.value })}
+                        placeholder="#EDE9FE" className="flex-1 font-mono text-sm" />
+                    </div>
+                  </div>
+                </div>
+                {/* Live preview */}
+                <div className="h-16 rounded-xl border border-border overflow-hidden flex items-center justify-center"
+                  style={{ background: form.bg_color }}>
+                  <span className="text-sm font-semibold px-4 py-2 rounded-lg" style={{ background: form.main_color, color: "#fff" }}>
+                    Preview
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* File upload for cover_photo / profile_icon */}
+            {isFileType && (
+              <div className="space-y-2">
+                <Label>Attached File</Label>
+                {file ? (
+                  <div className="flex items-center gap-3 border border-border rounded-xl p-3">
+                    <Upload className="w-5 h-5 text-muted-foreground shrink-0" />
+                    <p className="text-sm font-medium truncate flex-1">{file.name}</p>
+                    <button type="button" onClick={() => setFile(null)} className="p-1 text-destructive"><X className="w-4 h-4" /></button>
+                  </div>
+                ) : editing?.preview_url ? (
+                  <div className="space-y-2">
+                    <img src={editing.preview_url} alt="current" className="w-full h-24 object-cover rounded-xl border border-border" />
+                    <label className="flex items-center gap-2 border border-dashed border-border rounded-xl p-3 cursor-pointer hover:border-primary/40 transition-colors">
+                      <Upload className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">Replace file</span>
+                      <input type="file" accept="image/*" className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+                    </label>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border rounded-xl p-6 cursor-pointer hover:border-primary/40 transition-colors">
+                    <Upload className="w-6 h-6 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Click to upload a file (PDF, doc, image, etc.)</span>
+                    <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+                  </label>
+                )}
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="description">Description</Label>
-              <Textarea id="description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} />
+              <Textarea id="description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} />
             </div>
             <Button type="submit" className="w-full" disabled={saving}>
               {saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{uploading ? "Uploading…" : "Saving…"}</> : (editing ? "Save Changes" : "Create Item")}

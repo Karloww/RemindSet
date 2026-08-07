@@ -45,11 +45,19 @@
       "type": "boolean",
       "default": false
     },
+    "jumble_choices": {
+      "type": "boolean",
+      "default": false
+    },
     "require_all": {
       "type": "boolean",
       "default": true
     },
     "allow_prev": {
+      "type": "boolean",
+      "default": true
+    },
+    "allow_pause": {
       "type": "boolean",
       "default": true
     },
@@ -64,6 +72,17 @@
     },
     "teacher_name": {
       "type": "string"
+    },
+    "time_limit_minutes": {
+      "type": "number"
+    },
+    "coins_reward": {
+      "type": "number",
+      "default": 0
+    },
+    "max_retakes": {
+      "type": "number",
+      "default": 0
     }
   },
   "required": [

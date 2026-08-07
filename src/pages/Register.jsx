@@ -1,10 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { UserPlus, Mail, Lock, User, Loader2, GraduationCap, Presentation } from "lucide-react";
+import { UserPlus, Mail, Lock, User, Loader2, GraduationCap, Presentation, KeyRound } from "lucide-react";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import AuthLayout from "@/components/AuthLayout";
 import GoogleIcon from "@/components/GoogleIcon";
@@ -20,11 +20,25 @@ export default function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [teacherCode, setTeacherCode] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showOtp, setShowOtp] = useState(false);
   const [otpCode, setOtpCode] = useState("");
   const [done, setDone] = useState(false);
+  const [validTeacherCode, setValidTeacherCode] = useState("");
+
+  useEffect(() => {
+    // Load the teacher secret code from AppSettings
+    (async () => {
+      try {
+        const settings = await base44.entities.AppSettings.filter({}, "-created_date", 1);
+        if (settings?.[0]?.teacher_secret_code) {
+          setValidTeacherCode(settings[0].teacher_secret_code);
+        }
+      } catch { /* ignore */ }
+    })();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -36,6 +50,17 @@ export default function Register() {
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       return;
+    }
+    // Validate teacher secret code
+    if (accountType === "teacher") {
+      if (!teacherCode) {
+        setError("Teacher Secret Code is required to register as a teacher.");
+        return;
+      }
+      if (validTeacherCode && teacherCode !== validTeacherCode) {
+        setError("Invalid Teacher Secret Code. Please contact your administrator.");
+        return;
+      }
     }
     setLoading(true);
     try {
@@ -56,7 +81,6 @@ export default function Register() {
       if (result?.access_token) {
         base44.auth.setToken(result.access_token);
       }
-      // Create the profile record now that we're authenticated.
       await base44.entities.Profile.create({
         first_name: firstName,
         last_name: lastName,
@@ -110,7 +134,7 @@ export default function Register() {
             </InputOTPGroup>
           </InputOTP>
         </div>
-        <Button className="w-full h-12 font-medium" onClick={handleVerify} disabled={loading || otpCode.length < 6}>
+        <Button onClick={handleVerify} className="w-full h-12 font-medium mt-6" disabled={loading || otpCode.length < 6}>
           {loading ? (<><Loader2 className="w-4 h-4 mr-2 animate-spin" />Verifying...</>) : ("Verify & Continue")}
         </Button>
         <p className="text-center text-sm text-muted-foreground mt-4">
@@ -198,6 +222,24 @@ export default function Register() {
             <Input id="confirm" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="pl-9 h-11" required />
           </div>
         </div>
+
+        {/* Teacher Secret Code */}
+        {accountType === "teacher" && (
+          <div className="space-y-2">
+            <Label className="text-primary font-semibold flex items-center gap-1.5">
+              <KeyRound className="w-4 h-4" /> Teacher's Secret Code
+            </Label>
+            <div className="relative">
+              <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input id="teacherCode" type="password" value={teacherCode}
+                onChange={(e) => setTeacherCode(e.target.value)}
+                placeholder="Type secret code to register as Teacher"
+                className="pl-9 h-11" required={accountType === "teacher"} />
+            </div>
+            <p className="text-xs text-muted-foreground">Contact your administrator to get the teacher registration code.</p>
+          </div>
+        )}
+
         <Button type="submit" className="w-full h-12 font-medium" disabled={loading}>
           {loading ? (<><Loader2 className="w-4 h-4 mr-2 animate-spin" />Creating account...</>) : ("Done")}
         </Button>

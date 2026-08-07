@@ -1,15 +1,16 @@
 import React from "react";
-import { COLOR_THEMES, BACKGROUNDS, COVER_PHOTOS, PROFILE_ICONS, isUrlValue, isCssValue } from "@/lib/themes";
+import { BACKGROUNDS, COVER_PHOTOS, PROFILE_ICONS, isUrlValue, isCssValue, getColorThemeSwatch, isColorThemeDark } from "@/lib/themes";
 
 // Renders a visual preview swatch for any customization option by (type, value).
 export default function ItemPreview({ type, value, className = "", rounded = "rounded-xl" }) {
   const base = `${className} ${rounded} overflow-hidden`;
 
   if (type === "color_theme") {
-    const t = COLOR_THEMES[value];
+    const swatch = getColorThemeSwatch(value);
+    const dark = isColorThemeDark(value);
     return (
-      <div className={`${base} relative flex items-center justify-center`} style={{ background: t ? `hsl(${t.vars["--primary"]})` : "#999" }}>
-        {t?.dark && <span className="text-[10px] text-white/90 font-medium bg-black/30 px-1.5 py-0.5 rounded-full">Dark</span>}
+      <div className={`${base} relative flex items-center justify-center`} style={{ background: swatch }}>
+        {dark && <span className="text-[10px] text-white/90 font-medium bg-black/30 px-1.5 py-0.5 rounded-full">Dark</span>}
       </div>
     );
   }
